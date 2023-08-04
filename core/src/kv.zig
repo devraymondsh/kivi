@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const KVMap = std.StringHashMapUnmanaged([]const u8);
+pub const KVMap = std.StringArrayHashMapUnmanaged([]const u8);
 
 pub const KV = struct {
     map: KVMap,
@@ -34,7 +34,7 @@ pub const KV = struct {
             const orig_key = entry.key_ptr.*;
 
             self.allocator.free(entry.value_ptr.*);
-            _ = self.map.remove(key);
+            _ = self.map.swapRemove(key);
             self.allocator.free(orig_key);
         }
     }
