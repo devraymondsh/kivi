@@ -16,11 +16,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    var h = std.Build.GeneratedFile{
-        .path = null,
-        .step = &dlib.step,
-    };
-    dlib.generated_h = &h;
 
     b.installArtifact(slib);
     b.installArtifact(dlib);
