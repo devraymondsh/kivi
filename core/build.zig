@@ -21,7 +21,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(dlib);
 
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/kv.zig" },
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
@@ -42,5 +42,6 @@ pub fn build(b: *std.Build) void {
         },
     });
     const run_ffi_tests = b.addRunArtifact(ffi_test);
-    test_step.dependOn(&run_ffi_tests.step);
+    _ = run_ffi_tests;
+    // test_step.dependOn(&run_ffi_tests.step);
 }

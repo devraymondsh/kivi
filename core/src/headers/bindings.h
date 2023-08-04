@@ -8,7 +8,7 @@ struct Str {
 };
 
 struct Map_opaque {
-  char __opaque[48];
+  char __opaque[96];
 };
 
 struct Map_opaque Map_init(void);

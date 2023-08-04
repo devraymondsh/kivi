@@ -1,16 +1,17 @@
 // zig build-lib src/main.zig -O ReleaseFast
 
 const std = @import("std");
-const kv = @import("kv.zig");
-const KV = kv.KV;
+const dummy_mmap = @import("dummy_mmap.zig");
+const Collection = dummy_mmap.Collection;
 
 comptime {
-    // @compileLog(@sizeOf(KV));
-    std.debug.assert(@sizeOf(KV) == 48); // update map.h when this changes
+    // @compileLog(@sizeOf(Collection));
+    std.debug.assert(@sizeOf(Collection) == 96); // update map.h when this changes
 }
 const Map_opaque = extern struct {
-    __opaque: [@sizeOf(KV)]u8 align(@alignOf(KV)),
-    fn toKV(self: *Map_opaque) *KV {
+    __opaque: [@sizeOf(Collection)]u8 align(@alignOf(Collection)),
+
+    fn toCollection(self: *Map_opaque) *Collection {
         return @ptrCast(self);
     }
 };
@@ -22,20 +23,13 @@ const Str = extern struct {
 };
 
 const GPA = std.heap.GeneralPurposeAllocator(.{});
-const Arena = std.heap.ArenaAllocator;
 
 export fn Map_init() Map_opaque {
-    // std.debug.print("Map_init\n", .{});
-    var state = Arena.init(std.heap.page_allocator);
-    _ = state.allocator().alloc(u8, 32 * 1024 * 1024) catch unreachable; // TODO
-    std.debug.assert(state.reset(.retain_capacity) == true);
-    const heap_state = state.allocator().create(Arena) catch unreachable; // TODO
-    heap_state.* = state;
-    var gpa = heap_state.allocator().create(GPA) catch unreachable; // TODO
-    gpa.* = GPA{ .backing_allocator = heap_state.allocator() };
-    const kv_instance = KV.init(gpa.allocator());
+    const collection_instance = dummy_mmap.Collection.init() catch unreachable;
+
     var result: Map_opaque = undefined;
-    for (@as(*const [@sizeOf(KV)]u8, @ptrCast(&kv_instance)), 0..) |byte, i| {
+
+    for (@as(*const [@sizeOf(Collection)]u8, @ptrCast(&collection_instance)), 0..) |byte, i| {
         result.__opaque[i] = byte;
     }
 
@@ -43,32 +37,34 @@ export fn Map_init() Map_opaque {
 }
 export fn Map_deinit(map: *Map_opaque) void {
     // std.debug.print("Map_deinit\n", .{});
-    const m = map.toKV();
+    const m = map.toCollection();
     // m.deinit(); // will be freed by arena deinit
-    const heap_state: *Arena = @ptrCast(@alignCast(@as(
-        *GPA,
-        @ptrCast(@alignCast(m.allocator.ptr)),
-    ).backing_allocator.ptr));
-    // state.allocator().destroy(heap_state); // will be freed by arena deinit
-    heap_state.deinit();
+    // const heap_state: *std.heap.ArenaAllocator = @ptrCast(@alignCast(@as(
+    //     *GPA,
+    //     @ptrCast(@alignCast(m.allocator.ptr)),
+    // ).backing_allocator.ptr));
+    // // state.allocator().destroy(heap_state); // will be freed by arena deinit
+    // heap_state.deinit();
+
+    m.deinit();
 }
 
 export fn Map_get(map: *Map_opaque, key_ptr: [*]const u8, key_len: usize) Str {
-    if (map.toKV().get(key_ptr[0..key_len])) |value| {
+    if (map.toCollection().get(key_ptr[0..key_len])) |value| {
         return .{ .ptr = value.ptr, .len = value.len };
     }
 
     return .{ .ptr = null, .len = 0 };
 }
 export fn Map_set(map: *Map_opaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) bool {
-    if (map.toKV().set(key_ptr[0..key_len], value_ptr[0..value_len])) |_| {
+    if (map.toCollection().set(key_ptr[0..key_len], value_ptr[0..value_len])) |_| {
         return true;
     } else |_| {
         return false;
     }
 }
 export fn Map_rm(map: *Map_opaque, key_ptr: [*]const u8, key_len: usize) void {
-    map.toKV().rm(key_ptr[0..key_len]);
+    map.toCollection().rm(key_ptr[0..key_len]);
 }
 
 test "C-like" {
