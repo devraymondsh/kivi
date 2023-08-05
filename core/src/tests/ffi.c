@@ -1,27 +1,27 @@
-// zig run test.c -L. -lmain
-
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include "../headers/bindings.h"
 
 int main(void) {
-    struct Map_opaque map = Map_init();
+    dump_stack_trace();
+    setup_debug_handlers();
 
-    Map_set(&map, "foo", 4, "bar", 5);
-    struct Str s1 = Map_get(&map, "foo", 4);
+    struct CollectionInitResult collection_res = CollectionInit();
 
-    assert(strcmp(s1.ptr, "bar") == 0);
+    assert(collection_res.err == 0);
 
-    Map_rm(&map, "foo", 4);
-    struct Str s2 = Map_get(&map, "foo", 4);
+    struct CollectionOpaque collection = collection_res.collection_opq;
 
-    assert(s2.ptr == NULL);
+    // Collection_set(collection, "foo", 4, "bar", 5);
+    // struct Str s1 = Collection_get(collection, "foo", 4);
 
-    Map_deinit(&map);
+    // assert(strcmp(s1.ptr, "bar") == 0);
+
+    // Collection_rm(collection, "foo", 4);
+    // struct Str s2 = Collection_get(collection, "foo", 4);
+
+    // assert(s2.ptr == NULL);
+
+    // CollectionDeinit(&collection);
 }
-/*
-mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fdb20df5000
-mmap(0x7fdb20df6000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fdb20df4000
-mmap(0x7fdb20df5000, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7fdb20df3000
-*/

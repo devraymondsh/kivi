@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) void {
 
     const ffi_test = b.addExecutable(.{ .name = "ffi-test" });
     ffi_test.linkLibC();
-    ffi_test.linkLibrary(dlib);
+    ffi_test.linkLibrary(slib);
     ffi_test.addCSourceFile(.{
         .file = .{ .path = "src/tests/ffi.c" },
         .flags = &.{
@@ -42,6 +42,5 @@ pub fn build(b: *std.Build) void {
         },
     });
     const run_ffi_tests = b.addRunArtifact(ffi_test);
-    _ = run_ffi_tests;
-    // test_step.dependOn(&run_ffi_tests.step);
+    test_step.dependOn(&run_ffi_tests.step);
 }
