@@ -4,11 +4,12 @@ const std = @import("std");
 const Libs = struct {
     static: *std.Build.Step.Compile,
     shared: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode) Libs {
-        return .{
-            .static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize }),
-            .shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize }),
-        };
+    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode, strip: ?bool) Libs {
+        const static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
+        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
+        static.strip = strip;
+        shared.strip = strip;
+        return .{ .static = static, .shared = shared };
     }
 };
 
@@ -16,11 +17,10 @@ const Libs = struct {
 const Targets = struct {
     libs: Libs,
     tests: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode) Targets {
-        return .{
-            .libs = Libs.create(b, name, path, target, optimize),
-            .tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize }),
-        };
+    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode, strip: ?bool) Targets {
+        const tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
+        tests.strip = strip;
+        return .{ .libs = Libs.create(b, name, path, target, optimize, strip), .tests = tests };
     }
 };
 
@@ -38,16 +38,19 @@ const FFI = struct {
         c_flags: []const []const u8,
         target: std.zig.CrossTarget,
         optimize: std.builtin.Mode,
+        strip: ?bool,
     ) FFI {
         return .{
             .unity = b: {
                 const ffi = b.addExecutable(.{ .name = "ffi", .root_source_file = .{ .path = lib_src_path }, .target = target, .optimize = optimize });
+                ffi.strip = strip;
                 ffi.linkLibC();
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
                 break :b ffi;
             },
             .static = b: {
                 const ffi = b.addExecutable(.{ .name = "ffi-static", .target = target, .optimize = optimize });
+                ffi.strip = strip;
                 ffi.linkLibC();
                 ffi.linkLibrary(static_lib);
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
@@ -55,6 +58,7 @@ const FFI = struct {
             },
             .shared = b: {
                 const ffi = b.addExecutable(.{ .name = "ffi-shared", .target = target, .optimize = optimize });
+                ffi.strip = strip;
                 ffi.linkLibC();
                 ffi.linkLibrary(shared_lib);
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
@@ -68,6 +72,8 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const strip = b.option(bool, "strip", "strip binaries");
+
     const lib_name = "core";
     const lib_src_path = "src/main.zig";
 
@@ -78,7 +84,7 @@ pub fn build(b: *std.Build) void {
         .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" },
     };
 
-    const targets = Targets.create(b, lib_name, lib_src_path, target, optimize);
+    const targets = Targets.create(b, lib_name, lib_src_path, target, optimize, strip);
 
     // Run tests on `zig build test`
     const run_main_tests = b.addRunArtifact(targets.tests);
@@ -99,6 +105,7 @@ pub fn build(b: *std.Build) void {
         c_flags,
         target,
         optimize,
+        strip,
     );
     const ffi_step = b.step("ffi", "Run FFI tests");
 
