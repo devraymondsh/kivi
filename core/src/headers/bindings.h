@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-enum CollectionInitError { Ok, Failed };
+enum CollectionInitStatus { Ok, Failed };
 
 struct Config {
   size_t keys_mmap_size;
@@ -19,14 +19,20 @@ struct __attribute__((aligned(8))) CollectionOpaque {
   char __opaque[128];
 };
 struct CollectionInitResult {
-  enum CollectionInitError err;
+  enum CollectionInitStatus err;
   struct CollectionOpaque collection_opq;
 };
 
-struct CollectionInitResult CollectionInit(void);
-struct CollectionInitResult CollectionInitWithConfig(struct Config config);
-struct Str CollectionGet(struct CollectionOpaque *const map,
+struct CollectionInitResult CollectionInitOut(void);
+struct CollectionInitResult CollectionInitWithConfigOut(struct Config config);
+enum CollectionInitStatus CollectionInit(struct CollectionOpaque* collection_opaque);
+enum CollectionInitStatus CollectionInitWithConfig(struct Config config, struct CollectionOpaque* collection_opaque);
+
+struct Str CollectionGetOut(struct CollectionOpaque *const map,
                          char const *const key, uintptr_t const key_len);
+void CollectionGet(struct CollectionOpaque *const map, struct Str* str,
+                         char const *const key, uintptr_t const key_len);
+
 // Zero means ok, so that means we return false(0) on success and return true(1) on failure
 bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
                    uintptr_t const key_len, char const *const value,
