@@ -2,7 +2,6 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 enum CollectionInitStatus { Ok, Failed };
 
@@ -29,16 +28,16 @@ enum CollectionInitStatus CollectionInit(struct CollectionOpaque* collection_opa
 enum CollectionInitStatus CollectionInitWithConfig(struct Config config, struct CollectionOpaque* collection_opaque);
 
 struct Str CollectionGetOut(struct CollectionOpaque *const map,
-                         char const *const key, uintptr_t const key_len);
+                         char const *const key, size_t const key_len);
 void CollectionGet(struct CollectionOpaque *const map, struct Str* str,
-                         char const *const key, uintptr_t const key_len);
+                         char const *const key, size_t const key_len);
 
 // Zero means ok, so that means we return false(0) on success and return true(1) on failure
 bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
-                   uintptr_t const key_len, char const *const value,
-                   uintptr_t const value_len);
+                   size_t const key_len, char const *const value,
+                   size_t const value_len);
 void CollectionRm(struct CollectionOpaque *const map, char const *const key,
-                  uintptr_t const key_len);
+                  size_t const key_len);
 void CollectionDeinit(struct CollectionOpaque *const map);
 
 void setup_debug_handlers(void);
