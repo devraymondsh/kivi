@@ -72,7 +72,11 @@ pub fn build(b: *std.Build) void {
     const lib_src_path = "src/main.zig";
 
     const c_ffi_path = "src/tests/ffi.c";
-    const c_flags = &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" };
+    const c_flags: []const []const u8 = switch (optimize) {
+        // asserts in ffi.c go away in unsafe build modes, so we need to disable errors on unused variables
+        .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror", "-Wno-unused-variable" },
+        .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" },
+    };
 
     const targets = Targets.create(b, lib_name, lib_src_path, target, optimize);
 
