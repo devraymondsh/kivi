@@ -1,22 +1,13 @@
 const std = @import("std");
 const Collection = @import("collection.zig");
 
-comptime {
-    // @compileLog(@sizeOf(Collection));
-    std.debug.assert(@sizeOf(Collection) == 128); // update bindings.h when this changes
-    // @compileLog(@align(Collection));
-    std.debug.assert(@alignOf(Collection) == 8); // update bindings.h when this changes
-}
-const CollectionOpaque = extern struct {
-    __opaque: [@sizeOf(Collection)]u8 align(@alignOf(Collection)),
-
-    fn toCollection(self: *CollectionOpaque) *Collection {
-        return @ptrCast(self);
-    }
-};
-
 const CollectionInitError = enum(u32) { Ok, Failed };
 
+pub const Config = extern struct {
+    keys_mmap_size: usize,
+    values_mmap_size: usize,
+    mmap_page_size: usize,
+};
 const Str = extern struct {
     // null == no result
     ptr: ?[*]const u8,
@@ -26,9 +17,23 @@ const CollectionInitResult = extern struct {
     err: CollectionInitError,
     collection_opq: CollectionOpaque,
 };
+const CollectionOpaque = extern struct {
+    __opaque: [@sizeOf(Collection)]u8 align(@alignOf(Collection)),
 
-export fn CollectionInit() CollectionInitResult {
-    const collection_instance = Collection.init(std.heap.page_allocator) catch return CollectionInitResult{ .err = .Failed, .collection_opq = undefined };
+    fn toCollection(self: *CollectionOpaque) *Collection {
+        return @ptrCast(self);
+    }
+};
+
+comptime {
+    // @compileLog(@sizeOf(Collection));
+    std.debug.assert(@sizeOf(Collection) == 128); // update bindings.h when this changes
+    // @compileLog(@align(Collection));
+    std.debug.assert(@alignOf(Collection) == 8); // update bindings.h when this changes
+}
+
+export fn CollectionInitWithConfig(config: Config) CollectionInitResult {
+    const collection_instance = Collection.init(std.heap.page_allocator, &config) catch return CollectionInitResult{ .err = .Failed, .collection_opq = undefined };
 
     var collection_opaque: CollectionOpaque = undefined;
 
@@ -37,6 +42,9 @@ export fn CollectionInit() CollectionInitResult {
     }
 
     return CollectionInitResult{ .err = CollectionInitError.Ok, .collection_opq = collection_opaque };
+}
+export fn CollectionInit() CollectionInitResult {
+    return CollectionInitWithConfig(Config{ .mmap_page_size = 100 * 1024 * 1024, .keys_mmap_size = 300 * 1024 * 1024, .values_mmap_size = 700 * 1024 * 1024 });
 }
 export fn CollectionDeinit(map: *CollectionOpaque) void {
     const m = map.toCollection();

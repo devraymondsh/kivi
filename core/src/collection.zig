@@ -1,5 +1,6 @@
 const std = @import("std");
 const Mmap = @import("mmap.zig");
+const main = @import("main.zig");
 
 pub const MmapPositions = struct { key_slice: []u8, value_slice: []u8 };
 pub const MmapPositionsWithIndex = struct {
@@ -15,13 +16,13 @@ mmapPositions: std.ArrayListUnmanaged(MmapPositions),
 
 const Collection = @This();
 
-pub fn init(allocator: std.mem.Allocator) !Collection {
+pub fn init(allocator: std.mem.Allocator, config: *const main.Config) !Collection {
     return .{
         .len = 0,
         .allocator = allocator,
         .mmapPositions = std.ArrayListUnmanaged(MmapPositions){},
-        .keysMmap = try Mmap.init(std.mem.page_size * 5, std.mem.page_size),
-        .valuesMmap = try Mmap.init(std.mem.page_size * 5, std.mem.page_size),
+        .keysMmap = try Mmap.init(config.keys_mmap_size, config.mmap_page_size),
+        .valuesMmap = try Mmap.init(config.values_mmap_size, config.mmap_page_size),
     };
 }
 pub fn deinit(self: *Collection) void {
@@ -60,7 +61,5 @@ pub fn rm(self: *Collection, key: []const u8) void {
 
         @memset(mmapPositions.key_slice, 0);
         @memset(mmapPositions.value_slice, 0);
-    } else {
-        std.debug.panic("Didn't found!", .{});
     }
 }

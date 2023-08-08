@@ -4,13 +4,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+enum CollectionInitError { Ok, Failed };
+
+struct Config {
+  size_t keys_mmap_size;
+  size_t values_mmap_size;
+  size_t mmap_page_size;
+};
 struct Str {
   const char *ptr;
   size_t len;
 };
-
-enum CollectionInitError { Ok, Failed };
-
 struct __attribute__((aligned(8))) CollectionOpaque {
   char __opaque[128];
 };
@@ -20,6 +24,7 @@ struct CollectionInitResult {
 };
 
 struct CollectionInitResult CollectionInit(void);
+struct CollectionInitResult CollectionInitWithConfig(struct Config config);
 struct Str CollectionGet(struct CollectionOpaque *const map,
                          char const *const key, uintptr_t const key_len);
 
