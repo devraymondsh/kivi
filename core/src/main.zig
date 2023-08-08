@@ -1,10 +1,9 @@
 const std = @import("std");
-const collection_opq = @import("collection.zig");
-const Collection = collection_opq.Collection;
+const Collection = @import("collection.zig");
 
 comptime {
     // @compileLog(@sizeOf(Collection));
-    std.debug.assert(@sizeOf(Collection) == 144); // update bindings.h when this changes
+    std.debug.assert(@sizeOf(Collection) == 128); // update bindings.h when this changes
     // @compileLog(@align(Collection));
     std.debug.assert(@alignOf(Collection) == 8); // update bindings.h when this changes
 }
@@ -16,8 +15,7 @@ const CollectionOpaque = extern struct {
     }
 };
 
-const CollectionInitError = enum(u32) { Ok, MmapFailure, AllocatorSetupFailure };
-const CollectionSetResult = enum(u32) { Success, MProtectAccessDenied, MProtectOutOfMemory, MProtectUnexpectedError, MmapPositionsOutOfMemory };
+const CollectionInitError = enum(u32) { Ok, Failed };
 
 const Str = extern struct {
     // null == no result
@@ -30,7 +28,7 @@ const CollectionInitResult = extern struct {
 };
 
 export fn CollectionInit() CollectionInitResult {
-    const collection_instance = Collection.init(std.heap.page_allocator) catch return CollectionInitResult{ .err = CollectionInitError.MmapFailure, .collection_opq = undefined };
+    const collection_instance = Collection.init(std.heap.page_allocator) catch return CollectionInitResult{ .err = .Failed, .collection_opq = undefined };
 
     var collection_opaque: CollectionOpaque = undefined;
 
@@ -52,15 +50,11 @@ export fn CollectionGet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: u
 
     return .{ .ptr = null, .len = 0 };
 }
-export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) CollectionSetResult {
-    if (map.toCollection().set(key_ptr[0..key_len], value_ptr[0..value_len])) |_| {
-        return CollectionSetResult.Success;
-    } else |err| switch (err) {
-        error.AccessDenied => return CollectionSetResult.MProtectAccessDenied,
-        error.OutOfMemory => return CollectionSetResult.MProtectOutOfMemory,
-        error.Unexpected => return CollectionSetResult.MProtectUnexpectedError,
-        error.MmapPositionsOutOfMemory => return CollectionSetResult.MmapPositionsOutOfMemory,
-    }
+export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) bool {
+    return if (map.toCollection().set(
+        key_ptr[0..key_len],
+        value_ptr[0..value_len],
+    )) |_| true else |_| false;
 }
 export fn CollectionRm(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize) void {
     map.toCollection().rm(key_ptr[0..key_len]);
@@ -80,7 +74,7 @@ test "C-like" {
 
     var collection_foo = collection_foo_res.collection_opq;
 
-    std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == CollectionSetResult.Success);
+    std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == true);
     const s1 = CollectionGet(&collection_foo, "foo", 3);
 
     std.debug.assert(std.mem.eql(u8, s1.ptr.?[0..s1.len], "bar"));

@@ -9,11 +9,10 @@ struct Str {
   size_t len;
 };
 
-enum CollectionInitError { Ok, MmapFailure, AllocatorSetupFailure };
-enum CollectionSetResult { Success, MProtectAccessDenied, MProtectOutOfMemory, MProtectUnexpectedError, MmapPositionsOutOfMemory };
+enum CollectionInitError { Ok, Failed };
 
 struct __attribute__((aligned(8))) CollectionOpaque {
-  char __opaque[144];
+  char __opaque[128];
 };
 struct CollectionInitResult {
   enum CollectionInitError err;
@@ -24,7 +23,7 @@ struct CollectionInitResult CollectionInit(void);
 struct Str CollectionGet(struct CollectionOpaque *const map,
                          char const *const key, uintptr_t const key_len);
 
-enum CollectionSetResult CollectionSet(struct CollectionOpaque *const map, char const *const key,
+bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
                    uintptr_t const key_len, char const *const value,
                    uintptr_t const value_len);
 void CollectionRm(struct CollectionOpaque *const map, char const *const key,

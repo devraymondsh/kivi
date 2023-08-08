@@ -11,8 +11,8 @@ int main(void) {
 
     struct CollectionOpaque collection = collection_res.collection_opq;
 
-    enum CollectionSetResult collection_set_res = CollectionSet(&collection, "foo", 4, "bar", 5);
-    assert(collection_set_res == 0);
+    bool collection_set_res = CollectionSet(&collection, "foo", 4, "bar", 5);
+    assert(collection_set_res == true);
 
     struct Str s1 = CollectionGet(&collection, "foo", 4);
     assert(strcmp(s1.ptr, "bar") == 0);
