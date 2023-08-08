@@ -25,11 +25,14 @@ const CollectionOpaque = extern struct {
     }
 };
 
+// update bindings.h when these change
 comptime {
+    // @compileLog(@alignOf(Config));
+    std.debug.assert(@alignOf(Config) == 8);
     // @compileLog(@sizeOf(Collection));
-    std.debug.assert(@sizeOf(Collection) == 128); // update bindings.h when this changes
+    std.debug.assert(@sizeOf(Collection) == 128);
     // @compileLog(@align(Collection));
-    std.debug.assert(@alignOf(Collection) == 8); // update bindings.h when this changes
+    std.debug.assert(@alignOf(Collection) == 8);
 }
 
 export fn CollectionInitWithConfig(config: Config) CollectionInitResult {
