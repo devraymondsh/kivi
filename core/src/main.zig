@@ -4,7 +4,9 @@ const Collection = collection_opq.Collection;
 
 comptime {
     // @compileLog(@sizeOf(Collection));
-    std.debug.assert(@sizeOf(Collection) == 144); // update map.h when this changes
+    std.debug.assert(@sizeOf(Collection) == 144); // update bindings.h when this changes
+    // @compileLog(@align(Collection));
+    std.debug.assert(@alignOf(Collection) == 8); // update bindings.h when this changes
 }
 const CollectionOpaque = extern struct {
     __opaque: [@sizeOf(Collection)]u8 align(@alignOf(Collection)),
@@ -86,3 +88,5 @@ test "C-like" {
 
     CollectionDeinit(&collection_foo);
 }
+
+pub const _start = {};

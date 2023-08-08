@@ -29,18 +29,54 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_main_tests.step);
 
-    const ffi_test = b.addExecutable(.{ .name = "ffi-test" });
+    const ffi_test = b.addExecutable(.{
+        .name = "ffi-test",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
     ffi_test.linkLibC();
-    ffi_test.linkLibrary(slib);
     ffi_test.addCSourceFile(.{
         .file = .{ .path = "src/tests/ffi.c" },
         .flags = &.{
             "-std=c17",
             "-pedantic",
             "-Wall",
-            "-W",
+            "-Werror",
+        },
+    });
+
+    const ffi_slib_test = b.addExecutable(.{ .name = "ffi-slib-test" });
+    ffi_slib_test.linkLibC();
+    ffi_slib_test.linkLibrary(slib);
+    ffi_slib_test.addCSourceFile(.{
+        .file = .{ .path = "src/tests/ffi.c" },
+        .flags = &.{
+            "-std=c17",
+            "-pedantic",
+            "-Wall",
+            "-Werror",
+        },
+    });
+
+    const ffi_dlib_test = b.addExecutable(.{ .name = "ffi-dlib-test" });
+    ffi_dlib_test.linkLibC();
+    ffi_dlib_test.linkLibrary(dlib);
+    ffi_dlib_test.addCSourceFile(.{
+        .file = .{ .path = "src/tests/ffi.c" },
+        .flags = &.{
+            "-std=c17",
+            "-pedantic",
+            "-Wall",
+            "-Werror",
         },
     });
     const run_ffi_tests = b.addRunArtifact(ffi_test);
     test_step.dependOn(&run_ffi_tests.step);
+
+    const run_ffi_slib_tests = b.addRunArtifact(ffi_slib_test);
+    test_step.dependOn(&run_ffi_slib_tests.step);
+
+    const run_ffi_dlib_tests = b.addRunArtifact(ffi_dlib_test);
+    test_step.dependOn(&run_ffi_dlib_tests.step);
 }

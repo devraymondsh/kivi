@@ -10,7 +10,7 @@ struct Str {
 };
 
 enum CollectionInitError { Ok, MmapFailure, allocatorSetupFailure };
-struct CollectionOpaque {
+struct __attribute__((aligned(8))) CollectionOpaque {
   char __opaque[144];
 };
 struct CollectionInitResult {
@@ -19,14 +19,14 @@ struct CollectionInitResult {
 };
 
 struct CollectionInitResult CollectionInit(void);
-struct Str CollectionGet(struct CollectionOpaque *const map, char const *const key,
-                   uintptr_t const key_len);
+struct Str CollectionGet(struct CollectionOpaque *const map,
+                         char const *const key, uintptr_t const key_len);
 
 bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
-             uintptr_t const key_len, char const *const value,
-             uintptr_t const value_len);
+                   uintptr_t const key_len, char const *const value,
+                   uintptr_t const value_len);
 void CollectionRm(struct CollectionOpaque *const map, char const *const key,
-            uintptr_t const key_len);
+                  uintptr_t const key_len);
 void CollectionDeinit(struct CollectionOpaque *const map);
 
 void setup_debug_handlers(void);

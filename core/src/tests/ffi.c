@@ -4,7 +4,6 @@
 #include "../headers/bindings.h"
 
 int main(void) {
-    dump_stack_trace();
     setup_debug_handlers();
 
     struct CollectionInitResult collection_res = CollectionInit();
@@ -13,15 +12,15 @@ int main(void) {
 
     struct CollectionOpaque collection = collection_res.collection_opq;
 
-    // Collection_set(collection, "foo", 4, "bar", 5);
-    // struct Str s1 = Collection_get(collection, "foo", 4);
+    CollectionSet(&collection, "foo", 4, "bar", 5);
+    struct Str s1 = CollectionGet(&collection, "foo", 4);
 
-    // assert(strcmp(s1.ptr, "bar") == 0);
+    assert(strcmp(s1.ptr, "bar") == 0);
 
-    // Collection_rm(collection, "foo", 4);
-    // struct Str s2 = Collection_get(collection, "foo", 4);
+    CollectionRm(&collection, "foo", 4);
+    struct Str s2 = CollectionGet(&collection, "foo", 4);
 
-    // assert(s2.ptr == NULL);
+    assert(s2.ptr == NULL);
 
-    // CollectionDeinit(&collection);
+    CollectionDeinit(&collection_res.collection_opq);
 }
