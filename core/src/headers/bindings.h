@@ -27,7 +27,7 @@ struct CollectionInitResult CollectionInit(void);
 struct CollectionInitResult CollectionInitWithConfig(struct Config config);
 struct Str CollectionGet(struct CollectionOpaque *const map,
                          char const *const key, uintptr_t const key_len);
-
+// Zero means ok, so that means we return false(0) on success and return true(1) on failure
 bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
                    uintptr_t const key_len, char const *const value,
                    uintptr_t const value_len);

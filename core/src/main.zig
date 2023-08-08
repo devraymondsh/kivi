@@ -66,11 +66,12 @@ export fn CollectionGet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: u
 
     return .{ .ptr = null, .len = 0 };
 }
+// Zero means ok, so that means we return false(0) on success and return true(1) on failure
 export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) bool {
     return if (map.toCollection().set(
         key_ptr[0..key_len],
         value_ptr[0..value_len],
-    )) |_| true else |_| false;
+    )) |_| false else |_| true;
 }
 export fn CollectionRm(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize) void {
     map.toCollection().rm(key_ptr[0..key_len]);
