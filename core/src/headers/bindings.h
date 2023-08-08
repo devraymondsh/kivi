@@ -8,8 +8,8 @@ enum CollectionInitError { Ok, Failed };
 
 struct Config {
   size_t keys_mmap_size;
-  size_t values_mmap_size;
   size_t mmap_page_size;
+  size_t values_mmap_size;
 };
 struct Str {
   const char *ptr;

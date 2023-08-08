@@ -5,8 +5,8 @@ const CollectionInitError = enum(u32) { Ok, Failed };
 
 pub const Config = extern struct {
     keys_mmap_size: usize,
-    values_mmap_size: usize,
     mmap_page_size: usize,
+    values_mmap_size: usize,
 };
 const Str = extern struct {
     // null == no result
@@ -25,14 +25,19 @@ const CollectionOpaque = extern struct {
     }
 };
 
+fn ffi_type_assert(comptime structure: type, expected_size: usize, expected_alignment: usize) void {
+    std.debug.assert(@sizeOf(structure) == expected_size);
+    std.debug.assert(@alignOf(structure) == expected_alignment);
+}
 // update bindings.h when these change
 comptime {
-    // @compileLog(@alignOf(Config));
-    std.debug.assert(@alignOf(Config) == 8);
-    // @compileLog(@sizeOf(Collection));
-    std.debug.assert(@sizeOf(Collection) == 128);
-    // @compileLog(@align(Collection));
-    std.debug.assert(@alignOf(Collection) == 8);
+    // Structs
+    ffi_type_assert(Str, 16, 8);
+    ffi_type_assert(Config, 24, 8);
+    ffi_type_assert(Collection, 128, 8);
+    ffi_type_assert(CollectionInitResult, 136, 8);
+    // Enums
+    ffi_type_assert(CollectionInitError, 4, 4);
 }
 
 export fn CollectionInitWithConfig(config: Config) CollectionInitResult {
