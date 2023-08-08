@@ -6,7 +6,7 @@ pub const Mmap = struct {
     protected_mem_cursor: usize,
     mem: []align(std.mem.page_size) u8,
 
-    fn mprotect(self: *Mmap) !void {
+    fn mprotect(self: *Mmap) std.os.MProtectError!void {
         const protected_mem_cursor = self.protected_mem_cursor + self.page_size;
         try std.os.mprotect(@alignCast(self.mem[self.protected_mem_cursor..protected_mem_cursor]), std.os.PROT.READ | std.os.PROT.WRITE);
 
@@ -29,7 +29,7 @@ pub const Mmap = struct {
         return mmap;
     }
 
-    pub fn push(self: *Mmap, data: []const u8) ![]u8 {
+    pub fn push(self: *Mmap, data: []const u8) std.os.MProtectError![]u8 {
         const starting_pos = self.cursor;
         const ending_pos = starting_pos + data.len;
 

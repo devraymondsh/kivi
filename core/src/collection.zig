@@ -1,8 +1,10 @@
 const std = @import("std");
 const mmap = @import("mmap.zig");
-const Mmap = mmap.Mmap;
 
+const Mmap = mmap.Mmap;
 const testing = std.testing;
+
+const CollectionSetError = error{ MProtectAccessDenied, MProtectOutOfMemory, MProtectUnexpectedError, MmapPositionsOutOfMemory };
 
 pub const MmapPositions = struct { key_slice: []u8, value_slice: []u8 };
 pub const MmapPositionsWithIndex = struct {
@@ -43,10 +45,10 @@ pub const Collection = struct {
         const keys_push_res = try self.keysMmap.push(key);
         const values_push_res = try self.valuesMmap.push(value);
 
-        try self.mmapPositions.append(.{
+        self.mmapPositions.append(.{
             .key_slice = keys_push_res,
             .value_slice = values_push_res,
-        });
+        }) catch return error.MmapPositionsOutOfMemory;
     }
     pub fn get(self: *Collection, key: []const u8) ?[]const u8 {
         if (self.find_by_key(key)) |mmapPositionsWithIndex| {

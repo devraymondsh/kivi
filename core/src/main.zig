@@ -16,12 +16,14 @@ const CollectionOpaque = extern struct {
     }
 };
 
+const CollectionInitError = enum(u32) { Ok, MmapFailure, AllocatorSetupFailure };
+const CollectionSetResult = enum(u32) { Success, MProtectAccessDenied, MProtectOutOfMemory, MProtectUnexpectedError, MmapPositionsOutOfMemory };
+
 const Str = extern struct {
     // null == no result
     ptr: ?[*]const u8,
     len: usize,
 };
-const CollectionInitError = enum(u32) { Ok, MmapFailure, allocatorSetupFailure };
 const CollectionInitResult = extern struct {
     err: CollectionInitError,
     collection_opq: CollectionOpaque,
@@ -50,11 +52,14 @@ export fn CollectionGet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: u
 
     return .{ .ptr = null, .len = 0 };
 }
-export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) bool {
+export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize, value_ptr: [*]const u8, value_len: usize) CollectionSetResult {
     if (map.toCollection().set(key_ptr[0..key_len], value_ptr[0..value_len])) |_| {
-        return true;
-    } else |_| {
-        return false;
+        return CollectionSetResult.Success;
+    } else |err| switch (err) {
+        error.AccessDenied => return CollectionSetResult.MProtectAccessDenied,
+        error.OutOfMemory => return CollectionSetResult.MProtectOutOfMemory,
+        error.Unexpected => return CollectionSetResult.MProtectUnexpectedError,
+        error.MmapPositionsOutOfMemory => return CollectionSetResult.MmapPositionsOutOfMemory,
     }
 }
 export fn CollectionRm(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize) void {
@@ -75,7 +80,7 @@ test "C-like" {
 
     var collection_foo = collection_foo_res.collection_opq;
 
-    std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == true);
+    std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == CollectionSetResult.Success);
     const s1 = CollectionGet(&collection_foo, "foo", 3);
 
     std.debug.assert(std.mem.eql(u8, s1.ptr.?[0..s1.len], "bar"));
