@@ -110,7 +110,7 @@ export fn dump_stack_trace() void {
     std.debug.dumpCurrentStackTrace(@returnAddress());
 }
 
-test "C-like" {
+test "C-like-out-functions" {
     var collection_foo_res = CollectionInitOut();
     std.debug.assert(collection_foo_res.err == CollectionInitStatus.Ok);
 
@@ -123,6 +123,25 @@ test "C-like" {
 
     CollectionRm(&collection_foo, "foo", "foo".len);
     const s2 = CollectionGetOut(&collection_foo, "foo", "foo".len);
+
+    std.debug.assert(s2.ptr == null);
+
+    CollectionDeinit(&collection_foo);
+}
+test "C-like-non-out-functions" {
+    var collection_foo: CollectionOpaque = undefined;
+    var collection_foo_res = CollectionInit(&collection_foo);
+    std.debug.assert(collection_foo_res == CollectionInitStatus.Ok);
+
+    std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == false);
+    var s1: Str = undefined;
+    CollectionGet(&collection_foo, &s1, "foo", 3);
+
+    std.debug.assert(std.mem.eql(u8, s1.ptr.?[0..s1.len], "bar"));
+
+    CollectionRm(&collection_foo, "foo", "foo".len);
+    var s2: Str = undefined;
+    CollectionGet(&collection_foo, &s2, "foo", "foo".len);
 
     std.debug.assert(s2.ptr == null);
 
