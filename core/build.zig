@@ -88,15 +88,16 @@ pub fn build(b: *std.Build) void {
     // Build and run C programs using 3 "linkage modes"
     const ffi = FFI.create(
         b,
+        lib_src_path,
         targets.libs.static,
         targets.libs.shared,
         c_ffi_path,
         c_flags,
-        lib_src_path,
         target,
         optimize,
     );
     const ffi_step = b.step("ffi", "Run FFI tests");
+
     inline for (@typeInfo(FFI).Struct.fields) |field| {
         const run = b.addRunArtifact(@field(ffi, field.name));
         ffi_step.dependOn(&run.step);

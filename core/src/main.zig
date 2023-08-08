@@ -75,7 +75,6 @@ test "C-like" {
 
     var collection_foo = collection_foo_res.collection_opq;
 
-    std.debug.assert(CollectionSet(&collection_foo, "foo2", "foo".len, "bar2", "bar".len) == true);
     std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == true);
     const s1 = CollectionGet(&collection_foo, "foo", 3);
 

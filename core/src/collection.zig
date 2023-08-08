@@ -4,7 +4,7 @@ const Mmap = mmap.Mmap;
 
 const testing = std.testing;
 
-pub const MmapPositions = struct { key_starting_pos: usize, key_ending_pos: usize, value_starting_pos: usize, value_ending_pos: usize };
+pub const MmapPositions = struct { key_slice: []u8, value_slice: []u8 };
 pub const MmapPositionsWithIndex = struct {
     index: usize,
     mmapPositions: MmapPositions,
@@ -32,9 +32,7 @@ pub const Collection = struct {
 
     fn find_by_key(self: *Collection, key: []const u8) ?MmapPositionsWithIndex {
         for (self.mmapPositions.items, 0..) |mmapPositions, index| {
-            const key_slice = self.keysMmap.read_slice(mmapPositions.key_starting_pos, mmapPositions.key_ending_pos);
-
-            if (std.mem.eql(u8, key, key_slice)) {
+            if (std.mem.eql(u8, key, mmapPositions.key_slice)) {
                 return MmapPositionsWithIndex{ .index = index, .mmapPositions = mmapPositions };
             }
         }
@@ -46,15 +44,13 @@ pub const Collection = struct {
         const values_push_res = try self.valuesMmap.push(value);
 
         try self.mmapPositions.append(.{
-            .key_starting_pos = keys_push_res.starting_pos,
-            .key_ending_pos = keys_push_res.ending_pos,
-            .value_starting_pos = values_push_res.starting_pos,
-            .value_ending_pos = values_push_res.ending_pos,
+            .key_slice = keys_push_res,
+            .value_slice = values_push_res,
         });
     }
     pub fn get(self: *Collection, key: []const u8) ?[]const u8 {
         if (self.find_by_key(key)) |mmapPositionsWithIndex| {
-            return self.valuesMmap.read_slice(mmapPositionsWithIndex.mmapPositions.value_starting_pos, mmapPositionsWithIndex.mmapPositions.value_ending_pos);
+            return @alignCast(mmapPositionsWithIndex.mmapPositions.value_slice);
         }
 
         return null;
@@ -63,8 +59,10 @@ pub const Collection = struct {
         if (self.find_by_key(key)) |mmapPositionsWithIndex| {
             const mmapPositions = self.mmapPositions.swapRemove(mmapPositionsWithIndex.index);
 
-            @memset(self.keysMmap.read_slice(mmapPositions.key_starting_pos, mmapPositions.key_ending_pos), 0);
-            @memset(self.valuesMmap.read_slice(mmapPositions.value_starting_pos, mmapPositions.value_ending_pos), 0);
+            @memset(mmapPositions.key_slice, 0);
+            @memset(mmapPositions.value_slice, 0);
+        } else {
+            std.debug.panic("Didn't found!", .{});
         }
     }
 };

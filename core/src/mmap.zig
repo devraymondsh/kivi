@@ -1,6 +1,5 @@
 const std = @import("std");
 
-pub const MmmapIndecies = struct { starting_pos: usize, ending_pos: usize };
 pub const Mmap = struct {
     cursor: usize,
     page_size: usize,
@@ -30,7 +29,7 @@ pub const Mmap = struct {
         return mmap;
     }
 
-    pub fn push(self: *Mmap, data: []const u8) !MmmapIndecies {
+    pub fn push(self: *Mmap, data: []const u8) ![]u8 {
         const starting_pos = self.cursor;
         const ending_pos = starting_pos + data.len;
 
@@ -38,11 +37,13 @@ pub const Mmap = struct {
             try self.mprotect();
         }
 
-        @memcpy(self.mem[starting_pos..ending_pos], data);
+        const slice = self.mem[starting_pos..ending_pos];
+
+        @memcpy(slice, data);
 
         self.cursor += ending_pos;
 
-        return MmmapIndecies{ .starting_pos = starting_pos, .ending_pos = ending_pos };
+        return slice;
     }
 
     pub fn read_slice(self: *Mmap, from: usize, to: usize) []u8 {
