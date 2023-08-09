@@ -38,7 +38,7 @@ class Collection {
     lib.symbols.CollectionDeinit(this.#ptr);
   }
 
-  get(key: string) {
+  get(/** @type {string} */ key) {
     const res = new TextEncoder().encodeInto(key, this.#key_scratch);
     lib.symbols.CollectionGet(
       this.#ptr,
@@ -58,7 +58,7 @@ class Collection {
     new Deno.UnsafePointerView(ptr).copyInto(sub, 0);
     return new TextDecoder().decode(sub);
   }
-  set(key: string, value: string) {
+  set(/** @type {string} */ key, /** @type {string} */ value) {
     const key_len =
       new TextEncoder().encodeInto(key, this.#key_scratch).written;
     const value_len =
@@ -75,7 +75,7 @@ class Collection {
       throw new Error("Failed to insert key!");
     }
   }
-  rm(key: string) {
+  rm(/** @type {string} */ key) {
     const key_len =
       new TextEncoder().encodeInto(key, this.#key_scratch).written;
     lib.symbols.CollectionRm(this.#ptr, this.#key_scratch_ptr, key_len);
@@ -96,7 +96,7 @@ console.log(coll.get("foo"));
 
 coll.destroy();
 
-console.time("runtime");
+console.time("ffi lib");
 const c = new Collection();
 for (let i = 0; i < 100_000; i++) {
   c.get("foo");
@@ -106,4 +106,16 @@ for (let i = 0; i < 100_000; i++) {
   c.get("foo");
 }
 c.destroy();
-console.timeEnd("runtime");
+console.timeEnd("ffi lib");
+
+console.time("Deno.Kv");
+const kv = await Deno.openKv("kv.db");
+for (let i = 0; i < 100_000; i++) {
+  await kv.get(["foo"]);
+  await kv.set(["foo"], "bar");
+  await kv.get(["foo"]);
+  await kv.delete(["foo"]);
+  await kv.get(["foo"]);
+}
+kv.close();
+console.timeEnd("Deno.Kv");
