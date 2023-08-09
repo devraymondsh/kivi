@@ -74,7 +74,7 @@ pub fn build(b: *std.Build) void {
 
     const strip = b.option(bool, "strip", "strip binaries");
 
-    const lib_name = "core";
+    const lib_name = "kivi";
     const lib_src_path = "src/main.zig";
 
     const c_ffi_path = "src/tests/ffi.c";
