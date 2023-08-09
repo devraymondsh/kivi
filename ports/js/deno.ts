@@ -95,3 +95,15 @@ coll.rm("foo");
 console.log(coll.get("foo"));
 
 coll.destroy();
+
+console.time("runtime");
+const c = new Collection();
+for (let i = 0; i < 100_000; i++) {
+  c.get("foo");
+  c.set("foo", "bar");
+  c.get("foo");
+  c.rm("foo");
+  c.get("foo");
+}
+c.destroy();
+console.timeEnd("runtime");
