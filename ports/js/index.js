@@ -204,7 +204,7 @@ while (true) {
     console.log("kivi\t\t", end - start, "ms");
   }
 
-  { // localStorage
+  if (isDeno()) { // localStorage
     localStorage.clear();
     const start = performance.now();
     for (let i = 0; i < 10_000; i++) {
