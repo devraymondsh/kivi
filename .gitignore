@@ -1,2 +1,5 @@
 core/zig-cache
 core/zig-out
+ports/**/package-lock.json
+ports/**/node_modules
+ports/**/build

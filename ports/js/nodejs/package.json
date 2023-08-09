@@ -1,0 +1,16 @@
+{
+  "name": "kivi-nodejs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean"
+  },
+  "author": "",
+  "dependencies": {
+    "node-addon-api": "7.0.0"
+  },
+  "license": "ISC",
+  "gypfile": true
+}
