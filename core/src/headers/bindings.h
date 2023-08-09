@@ -22,7 +22,7 @@ struct Str
 };
 struct __attribute__((aligned(8))) CollectionOpaque
 {
-  char __opaque[128];
+  char __opaque[120];
 };
 struct CollectionInitResult
 {

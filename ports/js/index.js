@@ -96,12 +96,12 @@ if (isBun()) {
   throw new Error("The Node port is not currently implemented!");
 } else {
   throw new Error(
-    "Unsupported runtime! Kivi only supports Bun, Deno, and Nodejs."
+    "Unsupported runtime! Kivi only supports Bun, Deno, and Nodejs.",
   );
 }
 
 export class Collection {
-  #buf = new Uint8Array(128);
+  #buf = new Uint8Array(120);
   #ptr = utils.ptr(this.#buf);
 
   #str_buf = new Uint8Array(16);
@@ -109,7 +109,7 @@ export class Collection {
   #str_dv = new DataView(
     this.#str_buf.buffer,
     this.#str_buf.byteOffset,
-    this.#str_buf.byteLength
+    this.#str_buf.byteLength,
   );
 
   #key_scratch = new Uint8Array(4096);
@@ -132,7 +132,7 @@ export class Collection {
       this.#ptr,
       this.#str_ptr,
       this.#key_scratch_ptr,
-      res.written
+      res.written,
     );
 
     const addr = this.#str_dv.getBigUint64(0, true);
@@ -147,11 +147,11 @@ export class Collection {
   set(/** @type {string} */ key, /** @type {string} */ value) {
     const key_len = new TextEncoder().encodeInto(
       key,
-      this.#key_scratch
+      this.#key_scratch,
     ).written;
     const value_len = new TextEncoder().encodeInto(
       value,
-      this.value_scratch
+      this.value_scratch,
     ).written;
 
     if (
@@ -160,7 +160,7 @@ export class Collection {
         this.#key_scratch_ptr,
         key_len,
         this.#value_scratch_ptr,
-        value_len
+        value_len,
       )
     ) {
       throw new Error("Failed to insert key!");
@@ -169,21 +169,68 @@ export class Collection {
   rm(/** @type {string} */ key) {
     const key_len = new TextEncoder().encodeInto(
       key,
-      this.#key_scratch
+      this.#key_scratch,
     ).written;
 
     utils.symbols.CollectionRm(this.#ptr, this.#key_scratch_ptr, key_len);
   }
 }
 
-console.time("ffi lib");
-const c = new Collection();
-for (let i = 0; i < 100_000; i++) {
-  c.get("foo");
-  c.set("foo", "bar");
-  c.get("foo");
-  c.rm("foo");
-  c.get("foo");
+while (true) {
+  { // Plain JS object
+    const o = {};
+    const start = performance.now();
+    for (let i = 0; i < 1_000_000; i++) {
+      const key = `foo_${i}`;
+      [key];
+      o[key] = "bar";
+      o[key];
+    }
+    const end = performance.now();
+    console.log("Plain JS object\t", end - start, "ms");
+  }
+
+  { // kivi
+    const c = new Collection();
+    const start = performance.now();
+    for (let i = 0; i < 1_000_000; i++) {
+      const key = `foo_${i}`;
+      c.get(key);
+      c.set(key, "bar");
+      c.get(key);
+    }
+    const end = performance.now();
+    c.destroy();
+    console.log("kivi\t\t", end - start, "ms");
+  }
+
+  { // localStorage
+    localStorage.clear();
+    const start = performance.now();
+    for (let i = 0; i < 10_000; i++) {
+      const key = `foo_${i}`;
+      localStorage.getItem(key);
+      localStorage.setItem(key, "bar");
+      localStorage.getItem(key);
+    }
+    const end = performance.now();
+    console.log("localStorage\t", ((end - start) * 100) / 1000 / 60, "m");
+  }
+
+  if (isDeno()) { // Deno.Kv
+    await Deno.remove("kv.db");
+    const kv = await Deno.openKv("kv.db");
+    const start = performance.now();
+    for (let i = 0; i < 10_000; i++) {
+      const key = `foo_${i}`;
+      await kv.get([key]);
+      await kv.set([key], "bar");
+      await kv.get([key]);
+    }
+    const end = performance.now();
+    kv.close();
+    console.log("Deno.Kv\t\t", ((end - start) * 100) / 1000 / 60, "m");
+  }
+
+  console.log("");
 }
-c.destroy();
-console.timeEnd("ffi lib");

@@ -34,8 +34,8 @@ comptime {
     // Structs
     ffi_type_assert(Str, 16, 8);
     ffi_type_assert(Config, 24, 8);
-    ffi_type_assert(Collection, 128, 8);
-    ffi_type_assert(CollectionInitResult, 136, 8);
+    ffi_type_assert(Collection, 120, 8);
+    ffi_type_assert(CollectionInitResult, 128, 8);
     // Enums
     ffi_type_assert(CollectionInitStatus, 4, 4);
 }
