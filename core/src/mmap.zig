@@ -42,7 +42,7 @@ pub fn push(self: *Mmap, data: []const u8) std.os.MProtectError![]u8 {
 
     @memcpy(slice, data);
 
-    self.cursor += ending_pos;
+    self.cursor = ending_pos;
 
     return slice;
 }
