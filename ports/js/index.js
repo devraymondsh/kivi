@@ -182,12 +182,25 @@ while (true) {
     const start = performance.now();
     for (let i = 0; i < 1_000_000; i++) {
       const key = `foo_${i}`;
-      [key];
+      o[key];
       o[key] = "bar";
       o[key];
     }
     const end = performance.now();
     console.log("Plain JS object\t", end - start, "ms");
+  }
+
+  { // JS Map
+    const m = new Map();
+    const start = performance.now();
+    for (let i = 0; i < 1_000_000; i++) {
+      const key = `foo_${i}`;
+      m.get(key);
+      m.set(key, "bar");
+      m.get(key);
+    }
+    const end = performance.now();
+    console.log("JS Map\t\t", end - start, "ms");
   }
 
   { // kivi
