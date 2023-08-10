@@ -9,6 +9,8 @@ const Libs = struct {
         const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
         static.strip = strip;
         shared.strip = strip;
+        static.force_pic = true;
+        shared.force_pic = true;
         return .{ .static = static, .shared = shared };
     }
 };

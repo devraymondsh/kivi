@@ -1,0 +1,1 @@
+zig build && mv zig-out/lib/libnode.so zig-out/lib/addon.node && node src/index.js

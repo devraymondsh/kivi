@@ -1,16 +1,17 @@
 {
   "name": "kivi-nodejs",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "build": "node-gyp rebuild",
-    "clean": "node-gyp clean"
+    "install-headers": "nodehead -o src/include -n",
+    "build": "zig build"
   },
   "author": "",
-  "dependencies": {
-    "node-addon-api": "7.0.0"
-  },
   "license": "ISC",
-  "gypfile": true
+  "gypfile": true,
+  "devDependencies": {
+    "napi-headers": "^0.5.0"
+  }
 }

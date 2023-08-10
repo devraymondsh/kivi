@@ -1,5 +1,5 @@
-core/zig-cache
-core/zig-out
+**/zig-cache
+**/zig-out
+ports/js/nodejs/src/include/**
 ports/**/package-lock.json
 ports/**/node_modules
-ports/**/build

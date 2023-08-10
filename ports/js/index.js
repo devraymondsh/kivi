@@ -39,16 +39,10 @@ if (isBun()) {
   });
 
   utils = {
-    ptr: function (value) {
+    makeBufferPtr: function (value) {
       return ptr(value);
     },
-    symbols: {
-      CollectionInit: lib.symbols.CollectionInit,
-      CollectionDeinit: lib.symbols.CollectionDeinit,
-      CollectionGet: lib.symbols.CollectionGet,
-      CollectionSet: lib.symbols.CollectionSet,
-      CollectionRm: lib.symbols.CollectionRm,
-    },
+    symbols: lib.symbols,
     cstringToJs: function (addr, len) {
       return new CString(Number(addr), 0, Number(len));
     },
@@ -72,16 +66,10 @@ if (isBun()) {
   });
 
   utils = {
-    ptr: function (value) {
+    makeBufferPtr: function (value) {
       return Deno.UnsafePointer.of(value);
     },
-    symbols: {
-      CollectionInit: lib.symbols.CollectionInit,
-      CollectionDeinit: lib.symbols.CollectionDeinit,
-      CollectionGet: lib.symbols.CollectionGet,
-      CollectionSet: lib.symbols.CollectionSet,
-      CollectionRm: lib.symbols.CollectionRm,
-    },
+    symbols: lib.symbols,
     cstringToJs: function (addr, len, value_scratch) {
       const ptr = Deno.UnsafePointer.create(addr);
       if (ptr == null) return null;
@@ -93,29 +81,41 @@ if (isBun()) {
     },
   };
 } else if (isNodeJS()) {
-  throw new Error("The Node port is not currently implemented!");
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  const addon = require("./nodejs/zig-out/lib/addon.node");
+
+  utils = {
+    makeBufferPtr: function (value) {
+      return value;
+    },
+    symbols: addon,
+    cstringToJs: function (addr, len, value_scratch) {
+      return "";
+    },
+  };
 } else {
   throw new Error(
-    "Unsupported runtime! Kivi only supports Bun, Deno, and Nodejs.",
+    "Unsupported runtime! Kivi only supports Bun, Deno, and Nodejs."
   );
 }
 
 export class Collection {
   #buf = new Uint8Array(120);
-  #ptr = utils.ptr(this.#buf);
+  #ptr = utils.makeBufferPtr(this.#buf);
 
   #str_buf = new Uint8Array(16);
-  #str_ptr = utils.ptr(this.#str_buf);
+  #str_ptr = utils.makeBufferPtr(this.#str_buf);
   #str_dv = new DataView(
     this.#str_buf.buffer,
     this.#str_buf.byteOffset,
-    this.#str_buf.byteLength,
+    this.#str_buf.byteLength
   );
 
   #key_scratch = new Uint8Array(4096);
-  #key_scratch_ptr = utils.ptr(this.#key_scratch);
+  #key_scratch_ptr = utils.makeBufferPtr(this.#key_scratch);
   value_scratch = new Uint8Array(4096);
-  #value_scratch_ptr = utils.ptr(this.value_scratch);
+  #value_scratch_ptr = utils.makeBufferPtr(this.value_scratch);
 
   constructor() {
     if (utils.symbols.CollectionInit(this.#ptr) !== 0) {
@@ -132,7 +132,7 @@ export class Collection {
       this.#ptr,
       this.#str_ptr,
       this.#key_scratch_ptr,
-      res.written,
+      res.written
     );
 
     const addr = this.#str_dv.getBigUint64(0, true);
@@ -147,11 +147,11 @@ export class Collection {
   set(/** @type {string} */ key, /** @type {string} */ value) {
     const key_len = new TextEncoder().encodeInto(
       key,
-      this.#key_scratch,
+      this.#key_scratch
     ).written;
     const value_len = new TextEncoder().encodeInto(
       value,
-      this.value_scratch,
+      this.value_scratch
     ).written;
 
     if (
@@ -160,7 +160,7 @@ export class Collection {
         this.#key_scratch_ptr,
         key_len,
         this.#value_scratch_ptr,
-        value_len,
+        value_len
       )
     ) {
       throw new Error("Failed to insert key!");
@@ -169,7 +169,7 @@ export class Collection {
   rm(/** @type {string} */ key) {
     const key_len = new TextEncoder().encodeInto(
       key,
-      this.#key_scratch,
+      this.#key_scratch
     ).written;
 
     utils.symbols.CollectionRm(this.#ptr, this.#key_scratch_ptr, key_len);
@@ -217,33 +217,5 @@ while (true) {
     console.log("kivi\t\t", end - start, "ms");
   }
 
-  if (isDeno()) { // localStorage
-    localStorage.clear();
-    const start = performance.now();
-    for (let i = 0; i < 10_000; i++) {
-      const key = `foo_${i}`;
-      localStorage.getItem(key);
-      localStorage.setItem(key, "bar");
-      localStorage.getItem(key);
-    }
-    const end = performance.now();
-    console.log("localStorage\t", ((end - start) * 100) / 1000 / 60, "m");
-  }
-
-  if (isDeno()) { // Deno.Kv
-    await Deno.remove("kv.db");
-    const kv = await Deno.openKv("kv.db");
-    const start = performance.now();
-    for (let i = 0; i < 10_000; i++) {
-      const key = `foo_${i}`;
-      await kv.get([key]);
-      await kv.set([key], "bar");
-      await kv.get([key]);
-    }
-    const end = performance.now();
-    kv.close();
-    console.log("Deno.Kv\t\t", ((end - start) * 100) / 1000 / 60, "m");
-  }
-
-  console.log("");
-}
+const c = new Collection();
+c.destroy();
