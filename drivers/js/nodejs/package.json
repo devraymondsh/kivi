@@ -4,13 +4,11 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "install-headers": "nodehead -o src/include -n",
     "build": "zig build"
   },
   "author": "",
   "license": "ISC",
-  "gypfile": true,
-  "devDependencies": {
-    "napi-headers": "^0.5.0"
+  "dependencies": {
+    "node-api-headers": "*"
   }
 }
