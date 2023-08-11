@@ -34,9 +34,13 @@ pub fn set(self: *Collection, key: []const u8, value: []const u8) error{OutOfMem
 pub fn get(self: *Collection, key: []const u8) ?[]const u8 {
     return self.map.get(key);
 }
-pub fn rm(self: *Collection, key: []const u8) void {
+pub fn rm(self: *Collection, key: []const u8) ?[]const u8 {
     if (self.map.fetchRemove(key)) |kv| {
         @memset(@constCast(kv.key), 0);
         @memset(kv.value, 0);
+
+        return kv.value;
     }
+
+    return null;
 }

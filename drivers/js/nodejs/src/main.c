@@ -51,7 +51,7 @@ napi_value CollectionDeinitJs(napi_env env, napi_callback_info info) {
 
 napi_value CollectionGetJs(napi_env env, napi_callback_info info) {
   // TODO: rework
-  GET_CB_INFO(3);
+  GET_CB_INFO(2);
 
   char key_buf[4096];
   size_t key_len = CastKeyOrValue(env, args[1], &key_buf);
@@ -91,7 +91,19 @@ napi_value CollectionRmJs(napi_env env, napi_callback_info info) {
 
   char key_buf[4096];
   size_t key_len = CastKeyOrValue(env, args[1], &key_buf);
-  CollectionRm(CastCollectionOpaque(env, args[0]), key_buf, key_len);
+
+  struct Str str;
+  CollectionRm(CastCollectionOpaque(env, args[0]), &str, key_buf, key_len);
+
+  if (str.ptr == NULL) {
+    napi_value null_value;
+    assert(napi_get_null(env, &null_value) == napi_ok);
+    return null_value;
+  }
+
+  napi_value str_value;
+  assert(napi_create_string_utf8(env, str.ptr, str.len, &str_value) == napi_ok);
+  return str_value;
 }
 
 static napi_value Init(napi_env env, napi_value exports) {

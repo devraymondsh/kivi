@@ -17,9 +17,11 @@ void test_out_functions(void) {
     struct Str s1 = CollectionGetOut(&collection, "foo", 4);
     assert(strcmp(s1.ptr, "bar") == 0);
 
-    CollectionRm(&collection, "foo", 4);
-    struct Str s2 = CollectionGetOut(&collection, "foo", 4);
-    assert(s2.ptr == NULL);
+    struct Str s2 = CollectionRmOut(&collection, "foo", 4);
+    assert(s2.ptr != NULL);
+
+    struct Str s3 = CollectionGetOut(&collection, "foo", 4);
+    assert(s3.ptr == NULL);
 
     CollectionDeinit(&collection_res.collection_opq);
 }
@@ -37,11 +39,13 @@ void test_non_out_functions(void) {
     CollectionGet(&collection, &s1, "foo", 4);
     assert(strcmp(s1.ptr, "bar") == 0);
 
-    CollectionRm(&collection, "foo", 4);
-
     struct Str s2;
-    CollectionGet(&collection, &s2, "foo", 4);
-    assert(s2.ptr == NULL);
+    CollectionRm(&collection, &s2, "foo", 4);
+    assert(s2.ptr != NULL);
+
+    struct Str s3;
+    CollectionGet(&collection, &s3, "foo", 4);
+    assert(s3.ptr == NULL);
 
     CollectionDeinit(&collection);
 }

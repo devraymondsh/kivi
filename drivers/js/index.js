@@ -172,7 +172,7 @@ export class Collection {
       this.#key_scratch
     ).written;
 
-    utils.symbols.CollectionRm(this.#ptr, this.#key_scratch_ptr, key_len);
+    utils.symbols.CollectionRmOut(this.#ptr, this.#key_scratch_ptr, key_len);
   }
 }
 

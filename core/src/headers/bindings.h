@@ -30,23 +30,21 @@ struct CollectionInitResult
   struct CollectionOpaque collection_opq;
 };
 
+void CollectionDeinit(struct CollectionOpaque *const map);
 struct CollectionInitResult CollectionInitOut(void);
 struct CollectionInitResult CollectionInitWithConfigOut(struct Config config);
 enum CollectionInitStatus CollectionInit(struct CollectionOpaque *collection_opaque);
 enum CollectionInitStatus CollectionInitWithConfig(struct Config config, struct CollectionOpaque *collection_opaque);
 
-struct Str CollectionGetOut(struct CollectionOpaque *const map,
-                            char const *const key, size_t const key_len);
-void CollectionGet(struct CollectionOpaque *const map, struct Str *str,
-                   char const *const key, size_t const key_len);
+struct Str CollectionGetOut(struct CollectionOpaque *const map, char const *const key, size_t const key_len);
+void CollectionGet(struct CollectionOpaque *const map, struct Str *str, char const *const key, size_t const key_len);
+struct Str CollectionRmOut(struct CollectionOpaque *const map, char const *const key, size_t const key_len);
+void CollectionRm(struct CollectionOpaque *const map, struct Str *str, char const *const key, size_t const key_len);
 
 // Zero means ok, so that means we return false(0) on success and return true(1) on failure
 bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
                    size_t const key_len, char const *const value,
                    size_t const value_len);
-void CollectionRm(struct CollectionOpaque *const map, char const *const key,
-                  size_t const key_len);
-void CollectionDeinit(struct CollectionOpaque *const map);
 
 void setup_debug_handlers(void);
 void dump_stack_trace(void);

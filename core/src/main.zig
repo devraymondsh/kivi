@@ -98,8 +98,20 @@ export fn CollectionSet(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: u
         value_ptr[0..value_len],
     )) |_| false else |_| true;
 }
-export fn CollectionRm(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize) void {
-    map.toCollection().rm(key_ptr[0..key_len]);
+export fn CollectionRm(map: *CollectionOpaque, str: *Str, key_ptr: [*]const u8, key_len: usize) void {
+    if (map.toCollection().rm(key_ptr[0..key_len])) |value| {
+        str.ptr = value.ptr;
+        str.len = value.len;
+    } else {
+        str.ptr = null;
+        str.len = 0;
+    }
+}
+export fn CollectionRmOut(map: *CollectionOpaque, key_ptr: [*]const u8, key_len: usize) Str {
+    var str: Str = undefined;
+    CollectionRm(map, &str, key_ptr, key_len);
+
+    return str;
 }
 
 // For debug info in FFI
@@ -118,13 +130,13 @@ test "C-like-out-functions" {
 
     std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == false);
     const s1 = CollectionGetOut(&collection_foo, "foo", 3);
-
     std.debug.assert(std.mem.eql(u8, s1.ptr.?[0..s1.len], "bar"));
 
-    CollectionRm(&collection_foo, "foo", "foo".len);
-    const s2 = CollectionGetOut(&collection_foo, "foo", "foo".len);
+    const s2 = CollectionRmOut(&collection_foo, "foo", "foo".len);
+    std.debug.assert(s2.ptr != null);
 
-    std.debug.assert(s2.ptr == null);
+    const s3 = CollectionGetOut(&collection_foo, "foo", "foo".len);
+    std.debug.assert(s3.ptr == null);
 
     CollectionDeinit(&collection_foo);
 }
@@ -139,11 +151,13 @@ test "C-like-non-out-functions" {
 
     std.debug.assert(std.mem.eql(u8, s1.ptr.?[0..s1.len], "bar"));
 
-    CollectionRm(&collection_foo, "foo", "foo".len);
     var s2: Str = undefined;
-    CollectionGet(&collection_foo, &s2, "foo", "foo".len);
+    CollectionRm(&collection_foo, &s2, "foo", "foo".len);
+    std.debug.assert(s2.ptr != null);
 
-    std.debug.assert(s2.ptr == null);
+    var s3: Str = undefined;
+    CollectionGet(&collection_foo, &s3, "foo", "foo".len);
+    std.debug.assert(s3.ptr == null);
 
     CollectionDeinit(&collection_foo);
 }
