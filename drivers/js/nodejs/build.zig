@@ -2,7 +2,7 @@ const std = @import("std");
 
 fn npmInstallFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
     _ = progress;
-    if (std.fs.cwd().openDir("node_modules", .{})) |_| {} else |_| {
+    if (std.fs.cwd().openDir("node_modules/node-api-headers", .{})) |_| {} else |_| {
         try self.evalChildProcess(&[_][]const u8{ "npm", "install" });
     }
 }
