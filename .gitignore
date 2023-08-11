@@ -1,5 +1,5 @@
 **/zig-cache
 **/zig-out
-ports/js/nodejs/src/include/**
-ports/**/package-lock.json
-ports/**/node_modules
+drivers/js/nodejs/src/include/**
+drivers/**/package-lock.json
+drivers/**/node_modules
