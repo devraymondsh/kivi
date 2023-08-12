@@ -10,3 +10,13 @@ Kivi is currently in development mode and not production ready. Here's a checkli
 - [ ] Adding access-over-network support to the JS library
 - [ ] Making a benchmark that compares performance difference between Kivi and its competitors
 - [ ] Start porting to other languages: Rust, Python, etc...
+
+
+## Contribution guide:
+Check the [contribution guide](CONTRIBUTING.md) for more information.
+
+## Code of conduct:
+You can check our [code of conduct guidelines](CODE_OF_CONDUCT.md).
+
+## License:
+Kivi is licensed under MIT. Head over to [LICENSE](LICENSE) for full description.

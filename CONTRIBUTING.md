@@ -9,7 +9,7 @@ Drivers mostly contain the language they're being written for, though if we need
 The server and Client used for the network implementation are mostly written in Zig but they may use libraries written in other languages like C.
 
 ## Contributing to the core
-Check out the [core's readme](https://github.com/devraymondsh/kivi/tree/main/core/readme.md) for instructions.
+Check out the [core's readme](core/readme.md) for instructions.
 
 ## Contributing to language drivers
 Check out the readme of the corresponding language or ask us to create one by creating an issue if you're writing a whole new driver for a language.
