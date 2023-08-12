@@ -3,7 +3,7 @@ name: Core test run and format check
 on: push
 
 jobs:
-  tests:
+  test-run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
