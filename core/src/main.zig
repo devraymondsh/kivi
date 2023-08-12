@@ -1,8 +1,6 @@
 const std = @import("std");
 const Collection = @import("collection.zig");
 
-const CollectionInitStatus = enum(u32) { Ok, Failed };
-
 pub const Config = extern struct {
     keys_mmap_size: usize,
     mmap_page_size: usize,
@@ -14,7 +12,7 @@ const Str = extern struct {
     len: usize,
 };
 const CollectionInitResult = extern struct {
-    err: CollectionInitStatus,
+    err: bool,
     collection_opq: CollectionOpaque,
 };
 const CollectionOpaque = extern struct {
@@ -36,20 +34,18 @@ comptime {
     ffi_type_assert(Config, 24, 8);
     ffi_type_assert(Collection, 120, 8);
     ffi_type_assert(CollectionInitResult, 128, 8);
-    // Enums
-    ffi_type_assert(CollectionInitStatus, 4, 4);
 }
 
-export fn CollectionInitWithConfig(config: Config, collection_opaque: *CollectionOpaque) CollectionInitStatus {
-    const collection_instance = Collection.init(std.heap.page_allocator, &config) catch return CollectionInitStatus.Failed;
+export fn CollectionInitWithConfig(config: Config, collection_opaque: *CollectionOpaque) bool {
+    const collection_instance = Collection.init(std.heap.page_allocator, &config) catch return true;
 
     for (@as(*const [@sizeOf(Collection)]u8, @ptrCast(&collection_instance)), 0..) |byte, i| {
         collection_opaque.__opaque[i] = byte;
     }
 
-    return CollectionInitStatus.Ok;
+    return false;
 }
-export fn CollectionInit(collection_opaque: *CollectionOpaque) CollectionInitStatus {
+export fn CollectionInit(collection_opaque: *CollectionOpaque) bool {
     return CollectionInitWithConfig(Config{ .mmap_page_size = 100 * 1024 * 1024, .keys_mmap_size = 300 * 1024 * 1024, .values_mmap_size = 700 * 1024 * 1024 }, collection_opaque);
 }
 export fn CollectionInitWithConfigOut(config: Config) CollectionInitResult {
@@ -124,7 +120,7 @@ export fn dump_stack_trace() void {
 
 test "C-like-out-functions" {
     var collection_foo_res = CollectionInitOut();
-    std.debug.assert(collection_foo_res.err == CollectionInitStatus.Ok);
+    std.debug.assert(collection_foo_res.err == false);
 
     var collection_foo = collection_foo_res.collection_opq;
 
@@ -143,7 +139,7 @@ test "C-like-out-functions" {
 test "C-like-non-out-functions" {
     var collection_foo: CollectionOpaque = undefined;
     var collection_foo_res = CollectionInit(&collection_foo);
-    std.debug.assert(collection_foo_res == CollectionInitStatus.Ok);
+    std.debug.assert(collection_foo_res == false);
 
     std.debug.assert(CollectionSet(&collection_foo, "foo", "foo".len, "bar", "bar".len) == false);
     var s1: Str = undefined;

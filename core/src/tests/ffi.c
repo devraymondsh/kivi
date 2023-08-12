@@ -29,7 +29,7 @@ void test_non_out_functions(void) {
     setup_debug_handlers();
 
     struct CollectionOpaque collection;
-    enum CollectionInitStatus collection_res = CollectionInit(&collection);
+    bool collection_res = CollectionInit(&collection);
     assert(collection_res == 0);
 
     bool collection_set_res = CollectionSet(&collection, "foo", 4, "bar", 5);

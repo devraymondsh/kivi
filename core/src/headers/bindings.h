@@ -3,12 +3,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-enum CollectionInitStatus
-{
-  Ok,
-  Failed
-};
-
 struct Config
 {
   size_t keys_mmap_size;
@@ -26,15 +20,15 @@ struct __attribute__((aligned(8))) CollectionOpaque
 };
 struct CollectionInitResult
 {
-  enum CollectionInitStatus err;
+  bool err;
   struct CollectionOpaque collection_opq;
 };
 
 void CollectionDeinit(struct CollectionOpaque *const map);
 struct CollectionInitResult CollectionInitOut(void);
 struct CollectionInitResult CollectionInitWithConfigOut(struct Config config);
-enum CollectionInitStatus CollectionInit(struct CollectionOpaque *collection_opaque);
-enum CollectionInitStatus CollectionInitWithConfig(struct Config config, struct CollectionOpaque *collection_opaque);
+bool CollectionInit(struct CollectionOpaque *collection_opaque);
+bool CollectionInitWithConfig(struct Config config, struct CollectionOpaque *collection_opaque);
 
 struct Str CollectionGetOut(struct CollectionOpaque *const map, char const *const key, size_t const key_len);
 void CollectionGet(struct CollectionOpaque *const map, struct Str *str, char const *const key, size_t const key_len);

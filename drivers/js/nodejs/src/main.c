@@ -35,7 +35,7 @@ napi_value CollectionInitJs(napi_env env, napi_callback_info info) {
   // TODO: rework
   GET_CB_INFO(1);
 
-  enum CollectionInitStatus status = CollectionInit(CastCollectionOpaque(env, args[0]));
+  bool status = CollectionInit(CastCollectionOpaque(env, args[0]));
 
   napi_value result;
   assert(napi_create_uint32(env, (uint32_t)status, &result) == napi_ok);
