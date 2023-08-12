@@ -1,3 +1,7 @@
+name: Core test run and format check
+
+on: push
+
 jobs:
   tests:
     runs-on: ubuntu-latest
