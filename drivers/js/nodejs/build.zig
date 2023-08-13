@@ -20,7 +20,7 @@ pub fn build(b: *std.build.Builder) !void {
         .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-Ofast", "-flto=thin", "-pedantic", "-Wall", "-Wno-unused-variable" },
         .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall" },
     };
-    const shared = b.addSharedLibrary(.{ .name = "addon", .target = target, .optimize = optimize, .single_threaded = true });
+    const shared = b.addSharedLibrary(.{ .name = "addon", .target = target, .optimize = .Debug, .single_threaded = true });
     shared.linkLibC();
     shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
     shared.addLibraryPath(std.build.LazyPath.relative("../../../core/zig-out/lib"));

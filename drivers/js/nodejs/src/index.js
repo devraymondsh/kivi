@@ -1,13 +1,16 @@
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 const addon = require("../zig-out/lib/addon.node");
 
-class NodeJsCollection {
-  #buf = new Uint8Array(120);
+export class NodeCollection {
+  #buf = new ArrayBuffer(120);
 
   init() {
     return addon.CollectionInit(this.#buf);
   }
-  deinit() {
-    addon.CollectionDeinit(this.#buf);
+  destroy() {
+    return addon.CollectionDeinit(this.#buf);
   }
 
   get(key) {
@@ -17,8 +20,6 @@ class NodeJsCollection {
     return addon.CollectionSet(this.#buf, key, value);
   }
   rm(key) {
-    addon.CollectionRm(this.#buf, key);
+    return addon.CollectionRm(this.#buf, key);
   }
 }
-
-module.exports = { NodeJsCollection };

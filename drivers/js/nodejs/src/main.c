@@ -47,6 +47,11 @@ napi_value CollectionDeinitJs(napi_env env, napi_callback_info info) {
   GET_CB_INFO(1);
 
   CollectionDeinit(CastCollectionOpaque(env, args[0]));
+
+  napi_value result;
+  assert(napi_create_uint32(env, 0, &result) == napi_ok);
+
+  return result;
 }
 
 napi_value CollectionGetJs(napi_env env, napi_callback_info info) {
