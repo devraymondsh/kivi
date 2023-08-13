@@ -54,8 +54,6 @@ export class Collection {
 
     if (this.#InnerCollectionClass.set(key, value)) {
       throw new Error("Failed to insert!");
-    } else {
-      return 0;
     }
   }
   rm(/** @type {string} */ key) {
