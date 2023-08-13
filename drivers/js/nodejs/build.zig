@@ -20,6 +20,7 @@ pub fn build(b: *std.build.Builder) !void {
         .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-Ofast", "-flto=thin", "-pedantic", "-Wall", "-Wno-unused-variable" },
         .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall" },
     };
+    // TODO: The addon segfaults for no reason in optimized builds so it's currently hardcoded as a Debug build.
     const shared = b.addSharedLibrary(.{ .name = "addon", .target = target, .optimize = .Debug, .single_threaded = true });
     shared.linkLibC();
     shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
