@@ -1,19 +1,35 @@
-export const dlopenLib = Deno.dlopen("../../core/zig-out/lib/libkivi.so", {
-  CollectionInit: { parameters: ["pointer"], result: "u32" },
-  CollectionDeinit: { parameters: ["pointer"], result: "void" },
-  CollectionGet: {
-    parameters: ["pointer", "pointer", "pointer", "usize"],
-    result: "void",
-  },
-  CollectionSet: {
-    parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
-    result: "bool",
-  },
-  CollectionRmOut: {
-    parameters: ["pointer", "pointer", "usize"],
-    result: "void",
-  },
-});
+let suffix = "";
+switch (Deno.build.os) {
+  case "windows":
+    suffix = "dll";
+    break;
+  case "darwin":
+    suffix = "dylib";
+    break;
+  default:
+    suffix = "so";
+    break;
+}
+
+export const dlopenLib = Deno.dlopen(
+  `../../core/zig-out/lib/libkivi.${suffix}`,
+  {
+    CollectionInit: { parameters: ["pointer"], result: "u32" },
+    CollectionDeinit: { parameters: ["pointer"], result: "void" },
+    CollectionGet: {
+      parameters: ["pointer", "pointer", "pointer", "usize"],
+      result: "void",
+    },
+    CollectionSet: {
+      parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+      result: "bool",
+    },
+    CollectionRmOut: {
+      parameters: ["pointer", "pointer", "usize"],
+      result: "void",
+    },
+  }
+);
 
 export const denoUtils = {
   makeBufferPtr: function (value) {
