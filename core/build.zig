@@ -111,6 +111,22 @@ pub fn build(b: *std.Build) void {
     );
     const ffi_step = b.step("ffi", "Run FFI tests");
 
+    const kivi = b.createModule(.{
+        .source_file = .{ .path = "src/Kivi.zig" },
+    });
+
+    const codegen = b.addExecutable(.{
+        .name = "codegen_generate",
+        .root_source_file = .{ .path = "src/codegen/generate.zig" },
+        .optimize = optimize,
+        .target = target,
+    });
+    codegen.addModule("Kivi", kivi);
+    const codegen_run = b.addRunArtifact(codegen);
+    ffi.unity.step.dependOn(&codegen_run.step);
+    ffi.static.step.dependOn(&codegen_run.step);
+    ffi.shared.step.dependOn(&codegen_run.step);
+
     inline for (@typeInfo(FFI).Struct.fields) |field| {
         const run = b.addRunArtifact(@field(ffi, field.name));
         ffi_step.dependOn(&run.step);

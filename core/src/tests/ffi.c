@@ -50,9 +50,42 @@ void test_non_out_functions(void) {
     CollectionDeinit(&collection);
 }
 
+
+void test_v2_functions(void) {
+  struct Kivi kv;
+  char v[4096];
+  size_t len = 999;
+
+  bool ok = !CollectionInit((struct CollectionOpaque *)&kv);
+  assert(ok);
+
+  len = kivi_get(&kv, "foo", 3, NULL, 0);
+  assert(len == 0);
+
+  len = kivi_set(&kv, "foo", 3, "bar", 3);
+  assert(len == 3);
+  len = 0;
+
+  len = kivi_get(&kv, "foo", 3, v, 4096);
+  assert(len == 3);
+  assert(v[0] == 'b');
+  assert(v[1] == 'a');
+  assert(v[2] == 'r');
+  len = 0;
+
+  len = kivi_del(&kv, "foo", 3, v, 4096);
+  assert(len == 3);
+
+  len = kivi_get(&kv, "foo", 3, NULL, 0);
+  assert(len == 0);
+
+  CollectionDeinit((struct CollectionOpaque *)&kv);
+}
+
 int main(void) {
     setup_debug_handlers();
 
     test_out_functions();
     test_non_out_functions();
+    test_v2_functions();
 }

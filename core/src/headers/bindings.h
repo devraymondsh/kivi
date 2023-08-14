@@ -42,3 +42,14 @@ bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
 
 void setup_debug_handlers(void);
 void dump_stack_trace(void);
+
+struct __attribute__((aligned(8))) Kivi {
+  char __opaque[120];
+};
+
+// TODO: Behavior documented in these comments
+size_t kivi_get(struct Kivi *const, const char *const key, const size_t key_len, char *const val, const size_t val_len);
+// TODO: Behavior documented in these comments
+size_t kivi_set(const struct Kivi *const, const char *const key, const size_t key_len, const char *const val, const size_t val_len);
+// TODO: Behavior documented in these comments
+size_t kivi_del(const struct Kivi *const, const char *const key, const size_t key_len, char *const val, const size_t val_len);
