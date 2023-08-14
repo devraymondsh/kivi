@@ -16,20 +16,19 @@
   napi_status cb_status = napi_get_cb_info(env, info, &argc, args, NULL, NULL); \
   assert(cb_status == napi_ok);
 
-struct CollectionOpaque* CastCollectionOpaque(napi_env env, napi_value arraybuffer) {
+struct CollectionOpaque *CastCollectionOpaque(napi_env env, napi_value arraybuffer) {
   void *ptr;
   size_t length;
-  assert(napi_get_arraybuffer_info(env, arraybuffer, &ptr, &length) == napi_ok);
-
-  return (struct CollectionOpaque *)ptr;
+  return napi_get_arraybuffer_info(env, arraybuffer, &ptr, &length) == napi_ok
+             ? (struct CollectionOpaque *)ptr
+             : NULL;
 }
 size_t CastKeyOrValue(napi_env env, napi_value arraybuffer, char *buf) {
   size_t len;
-  assert(napi_get_value_string_utf8(env, arraybuffer, buf, 4096,  &len) == napi_ok);
-
-  return len;
+  return napi_get_value_string_utf8(env, arraybuffer, buf, 4096, &len) == napi_ok
+             ? len
+             : 0;
 }
-
 
 napi_value CollectionInitJs(napi_env env, napi_callback_info info) {
   // TODO: rework
@@ -38,9 +37,8 @@ napi_value CollectionInitJs(napi_env env, napi_callback_info info) {
   bool status = CollectionInit(CastCollectionOpaque(env, args[0]));
 
   napi_value result;
-  assert(napi_create_uint32(env, (uint32_t)status, &result) == napi_ok);
-
-  return result;
+  return napi_create_uint32(env, (uint32_t)status, &result) == napi_ok ? result
+                                                                       : NULL;
 }
 napi_value CollectionDeinitJs(napi_env env, napi_callback_info info) {
   // FIXME: rework
@@ -49,9 +47,7 @@ napi_value CollectionDeinitJs(napi_env env, napi_callback_info info) {
   CollectionDeinit(CastCollectionOpaque(env, args[0]));
 
   napi_value result;
-  assert(napi_create_uint32(env, 0, &result) == napi_ok);
-
-  return result;
+  return napi_create_uint32(env, 0, &result) == napi_ok ? result : NULL;
 }
 
 napi_value CollectionGetJs(napi_env env, napi_callback_info info) {
@@ -65,16 +61,16 @@ napi_value CollectionGetJs(napi_env env, napi_callback_info info) {
   CollectionGet(CastCollectionOpaque(env, args[0]), &str, key_buf, key_len);
 
   if (str.ptr == NULL) {
-    napi_value null_value;
-    assert(napi_get_null(env, &null_value) == napi_ok);
+    napi_value null_value = 0;
+    napi_get_null(env, &null_value);
     return null_value;
   }
 
   napi_value str_value;
-  assert(napi_create_string_utf8(env, str.ptr, str.len, &str_value) == napi_ok);
+  napi_status str_result = napi_create_string_utf8(env, str.ptr, str.len, &str_value);
+  assert(str_result == napi_ok);
   return str_value;
 }
-
 
 napi_value CollectionSetJs(napi_env env, napi_callback_info info) {
   // TODO: rework
@@ -87,7 +83,8 @@ napi_value CollectionSetJs(napi_env env, napi_callback_info info) {
   bool status = CollectionSet(CastCollectionOpaque(env, args[0]), key_buf, key_len, value_buf, value_len);
 
   napi_value result;
-  assert(napi_create_uint32(env, (uint32_t)status, &result) == napi_ok);
+  napi_status uint32_status = napi_create_uint32(env, (uint32_t)status, &result);
+  assert(uint32_status == napi_ok);
 
   return result;
 }
