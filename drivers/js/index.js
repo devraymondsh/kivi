@@ -37,14 +37,25 @@ export class Collection {
     this.#InnerCollectionClass.destroy();
   }
 
-  get(/** @type {string} */ key) {
+  /**
+   * Returns the value of the given key
+   * @param {string} key
+   * @returns {(string|null)}
+   */
+  get(key) {
     if (key.length > 4096) {
       throw new Error("Key is too long!");
     }
 
     return this.#InnerCollectionClass.get(key);
   }
-  set(/** @type {string} */ key, /** @type {string} */ value) {
+  /**
+   * Sets a key to the given value
+   * @param {string} key
+   * @param {string} value
+   * @returns {void}
+   */
+  set(key, value) {
     if (key.length > 4096) {
       throw new Error("Key is too long!");
     }
@@ -56,6 +67,11 @@ export class Collection {
       throw new Error("Failed to insert!");
     }
   }
+  /**
+   * Removes a key with its value
+   * @param {string} key
+   * @returns {void}
+   */
   rm(/** @type {string} */ key) {
     this.#InnerCollectionClass.rm(key);
   }
