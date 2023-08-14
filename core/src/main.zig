@@ -194,7 +194,7 @@ test "v2 functions" {
 
 test "v2 C-like functions" {
     var kv: Kivi = undefined;
-    try std.testing.expect(CollectionInit(@ptrCast(&kv)) == false);
+    try std.testing.expect(kv.kivi_init() == @sizeOf(Kivi));
 
     try std.testing.expect(kv.kivi_set("foo", "foo".len, "bar", "bar".len) == 3);
 

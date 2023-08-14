@@ -48,6 +48,10 @@ struct __attribute__((aligned(8))) Kivi {
 };
 
 // TODO: Behavior documented in these comments
+size_t kivi_init(const struct Kivi *const);
+// TODO: Behavior documented in these comments
+void kivi_deinit(const struct Kivi *const);
+// TODO: Behavior documented in these comments
 size_t kivi_get(struct Kivi *const, const char *const key, const size_t key_len, char *const val, const size_t val_len);
 // TODO: Behavior documented in these comments
 size_t kivi_set(const struct Kivi *const, const char *const key, const size_t key_len, const char *const val, const size_t val_len);

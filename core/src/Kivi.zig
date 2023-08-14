@@ -20,10 +20,43 @@ pub fn init(allocator: std.mem.Allocator, config: *const main.Config) !Kivi {
     };
 }
 
+pub export fn kivi_init(self: *Kivi) usize {
+    const Arena = std.heap.ArenaAllocator;
+    const GPA = std.heap.GeneralPurposeAllocator(.{});
+    var arena_stack = Arena.init(std.heap.page_allocator);
+    const arena = arena_stack.allocator().create(Arena) catch return 0;
+    arena.* = arena_stack;
+    const gpa = arena.allocator().create(GPA) catch {
+        arena_stack.allocator().destroy(arena);
+        return 0;
+    };
+    gpa.* = GPA{};
+    self.len = 0;
+    self.allocator = gpa.allocator();
+    const config = main.Config{};
+    self.keysMmap = Mmap.init(config.keys_mmap_size, config.mmap_page_size) catch {
+        arena.allocator().destroy(gpa);
+        arena_stack.allocator().destroy(arena);
+        return 0;
+    };
+    self.valuesMmap = Mmap.init(config.values_mmap_size, config.mmap_page_size) catch {
+        self.keysMmap.deinit();
+        arena.allocator().destroy(gpa);
+        arena_stack.allocator().destroy(arena);
+        return 0;
+    };
+    self.map = .{};
+    return @sizeOf(Kivi);
+}
+
 pub fn deinit(self: *Kivi) void {
     self.map.deinit(self.allocator);
     self.keysMmap.deinit();
     self.valuesMmap.deinit();
+}
+
+pub export fn kivi_deinit(self: *Kivi) void {
+    self.deinit();
 }
 
 /// if val is null: returns length if pair exists, otherwise 0
