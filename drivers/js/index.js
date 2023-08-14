@@ -60,12 +60,3 @@ export class Collection {
     this.#InnerCollectionClass.rm(key);
   }
 }
-
-let c = new Collection();
-
-c.set("foo", "bar");
-console.log([c.get("foo")]);
-c.rm("foo");
-console.log([c.get("foo")]);
-
-c.destroy();
