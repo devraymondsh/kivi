@@ -36,13 +36,4 @@ export const denoUtils = {
     return Deno.UnsafePointer.of(value);
   },
   symbols: dlopenLib.symbols,
-  cstringToJs: function (value_scratch, len) {
-    const ptr = Deno.UnsafePointer.create(addr);
-    if (ptr == null) return null;
-
-    const sub = value_scratch.subarray(0, len);
-    new Deno.UnsafePointerView(ptr).copyInto(sub, 0);
-
-    return new TextDecoder().decode(sub);
-  },
 };

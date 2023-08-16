@@ -45,11 +45,4 @@ export const bunUtils = {
     return ptr(value);
   },
   symbols: dlopenLib.symbols,
-  cstringToJs: function (value_scratch, len) {
-    if (len != 0) {
-      return new CString(value_scratch, 0, len);
-    } else {
-      return null;
-    }
-  },
 };
