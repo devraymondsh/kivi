@@ -3,18 +3,23 @@ const Kivi = @import("Kivi");
 
 const TypeMap = std.ComptimeStringMap([]const u8, .{
     .{ "usize", "const size_t" },
-    .{ "*Kivi", "const struct Kivi *const" },
-    .{ "*const Kivi", "struct Kivi *const" },
+    .{ "*Kivi", "struct Kivi *const" },
+    .{ "*const Kivi", "const struct Kivi *const" },
     .{ "?[*]u8", "char *const" },
+    .{ "?*const main.Config", "const struct Config *const" },
     .{ "[*]const u8", "const char *const" },
 });
 
 inline fn mapTypeStr(comptime T: type, comptime config: struct { is_return_type: bool = false, i: usize = 0 }) []const u8 {
     const str = std.fmt.comptimePrint("{}", .{T});
+    // @compileLog(str);
     const mapped = comptime TypeMap.get(str) orelse return str;
     if (std.mem.endsWith(u8, str, "u8")) {
         if (config.i == 1) return mapped ++ " key";
         if (config.i == 3) return mapped ++ " val";
+    }
+    if (std.mem.endsWith(u8, str, "Config")) {
+        return mapped ++ " config";
     }
     if (std.mem.eql(u8, str, "usize")) {
         if (config.i == 2) return mapped ++ " key_len";
@@ -33,6 +38,10 @@ fn generate_C_headers(writer: anytype) !void {
         \\#include <stdbool.h>
         \\#include <stddef.h>
         \\
+        \\// Debugging symbols
+        \\void dump_stack_trace(void);
+        \\void setup_debug_handlers(void);
+        \\
         \\struct Config
         \\{{
         \\  size_t keys_mmap_size;
@@ -44,37 +53,8 @@ fn generate_C_headers(writer: anytype) !void {
         \\  const char *ptr;
         \\  size_t len;
         \\}};
-        \\struct __attribute__((aligned({}))) CollectionOpaque
-        \\{{
-        \\  char __opaque[{}];
-        \\}};
-        \\struct CollectionInitResult
-        \\{{
-        \\  bool err;
-        \\  struct CollectionOpaque collection_opq;
-        \\}};
         \\
-        \\void CollectionDeinit(struct CollectionOpaque *const map);
-        \\struct CollectionInitResult CollectionInitOut(void);
-        \\struct CollectionInitResult CollectionInitWithConfigOut(struct Config config);
-        \\bool CollectionInit(struct CollectionOpaque *collection_opaque);
-        \\bool CollectionInitWithConfig(struct Config config, struct CollectionOpaque *collection_opaque);
-        \\
-        \\struct Str CollectionGetOut(struct CollectionOpaque *const map, char const *const key, size_t const key_len);
-        \\void CollectionGet(struct CollectionOpaque *const map, struct Str *str, char const *const key, size_t const key_len);
-        \\struct Str CollectionRmOut(struct CollectionOpaque *const map, char const *const key, size_t const key_len);
-        \\void CollectionRm(struct CollectionOpaque *const map, struct Str *str, char const *const key, size_t const key_len);
-        \\
-        \\// Zero means ok, so that means we return false(0) on success and return true(1) on failure
-        \\bool CollectionSet(struct CollectionOpaque *const map, char const *const key,
-        \\                   size_t const key_len, char const *const value,
-        \\                   size_t const value_len);
-        \\
-        \\void setup_debug_handlers(void);
-        \\void dump_stack_trace(void);
-        \\
-        \\
-    , .{ @alignOf(Kivi), @sizeOf(Kivi) });
+    , .{});
     try writer.print(
         \\struct __attribute__((aligned({}))) Kivi {{
         \\  char __opaque[{}];

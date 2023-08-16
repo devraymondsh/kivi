@@ -1,6 +1,7 @@
 const std = @import("std");
 const Mmap = @import("mmap.zig");
 const main = @import("main.zig");
+const Config = main.Config;
 
 len: usize,
 keysMmap: Mmap,
@@ -10,7 +11,7 @@ map: std.StringHashMapUnmanaged([]u8),
 
 const Kivi = @This();
 
-pub fn init(allocator: std.mem.Allocator, config: *const main.Config) !Kivi {
+pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
     return .{
         .len = 0,
         .allocator = allocator,
@@ -20,7 +21,7 @@ pub fn init(allocator: std.mem.Allocator, config: *const main.Config) !Kivi {
     };
 }
 
-pub export fn kivi_init(self: *Kivi) usize {
+pub export fn kivi_init(self: *Kivi, config_arg: ?*const Config) usize {
     const Arena = std.heap.ArenaAllocator;
     const GPA = std.heap.GeneralPurposeAllocator(.{});
     var arena_stack = Arena.init(std.heap.page_allocator);
@@ -33,7 +34,14 @@ pub export fn kivi_init(self: *Kivi) usize {
     gpa.* = GPA{};
     self.len = 0;
     self.allocator = gpa.allocator();
-    const config = main.Config{};
+
+    var config = Config{};
+    if (config_arg != null) {
+        config.mmap_page_size = config_arg.?.mmap_page_size;
+        config.keys_mmap_size = config_arg.?.keys_mmap_size;
+        config.values_mmap_size = config_arg.?.values_mmap_size;
+    }
+
     self.keysMmap = Mmap.init(config.keys_mmap_size, config.mmap_page_size) catch {
         arena.allocator().destroy(gpa);
         arena_stack.allocator().destroy(arena);
@@ -46,6 +54,7 @@ pub export fn kivi_init(self: *Kivi) usize {
         return 0;
     };
     self.map = .{};
+
     return @sizeOf(Kivi);
 }
 
