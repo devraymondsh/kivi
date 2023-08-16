@@ -6,7 +6,7 @@ const TypeMap = std.ComptimeStringMap([]const u8, .{
     .{ "*Kivi", "struct Kivi *const" },
     .{ "*const Kivi", "const struct Kivi *const" },
     .{ "?[*]u8", "char *const" },
-    .{ "?*const main.Config", "const struct Config *const" },
+    .{ "?*const Kivi.Config", "const struct Config *const" },
     .{ "[*]const u8", "const char *const" },
 });
 
@@ -42,17 +42,6 @@ fn generate_C_headers(writer: anytype) !void {
         \\void dump_stack_trace(void);
         \\void setup_debug_handlers(void);
         \\
-        \\struct Config
-        \\{{
-        \\  size_t keys_mmap_size;
-        \\  size_t mmap_page_size;
-        \\  size_t values_mmap_size;
-        \\}};
-        \\struct Str
-        \\{{
-        \\  const char *ptr;
-        \\  size_t len;
-        \\}};
         \\
     , .{});
     try writer.print(
@@ -63,26 +52,42 @@ fn generate_C_headers(writer: anytype) !void {
         \\
     , .{ @alignOf(Kivi), @sizeOf(Kivi) });
     inline for (@typeInfo(Kivi).Struct.decls) |decl| {
-        if (std.mem.startsWith(u8, decl.name, "kivi_")) {
-            const info = @typeInfo(@TypeOf(@field(Kivi, decl.name))).Fn;
-            try writer.writeAll(
-                \\// TODO: Behavior documented in these comments
-                \\
-            );
-            try writer.writeAll(std.fmt.comptimePrint(
-                "{s} {s}(",
-                .{ comptime mapTypeStr(
-                    info.return_type.?,
-                    .{ .is_return_type = true },
-                ), decl.name },
-            ));
-            inline for (info.params, 0..) |param, i| {
-                if (i != 0) {
-                    try writer.writeAll(", ");
-                }
-                try writer.writeAll(mapTypeStr(param.type.?, .{ .i = i }));
+        if (std.mem.startsWith(u8, decl.name, "kivi_") or std.mem.eql(u8, decl.name, "Config")) {
+            const value = @field(Kivi, decl.name);
+            const info = @typeInfo(@TypeOf(value));
+            switch (info) {
+                .Type => switch (@typeInfo(value)) {
+                    .Struct => |s| {
+                        try writer.print("struct {s} {{\n", .{decl.name});
+                        inline for (s.fields) |field| {
+                            try writer.print("  {s} {s};\n", .{ mapTypeStr(field.type, .{ .is_return_type = true }), field.name });
+                        }
+                        try writer.writeAll("};\n\n");
+                    },
+                    inline else => |tag| @compileError("Unhandled case: " ++ @tagName(tag)),
+                },
+                .Fn => |f| {
+                    try writer.writeAll(
+                        \\// TODO: Behavior documented in these comments
+                        \\
+                    );
+                    try writer.writeAll(std.fmt.comptimePrint(
+                        "{s} {s}(",
+                        .{ comptime mapTypeStr(
+                            f.return_type.?,
+                            .{ .is_return_type = true },
+                        ), decl.name },
+                    ));
+                    inline for (f.params, 0..) |param, i| {
+                        if (i != 0) {
+                            try writer.writeAll(", ");
+                        }
+                        try writer.writeAll(mapTypeStr(param.type.?, .{ .i = i }));
+                    }
+                    try writer.writeAll(");\n");
+                },
+                else => @compileError("Unhandled case: " ++ @tagName(info)),
             }
-            try writer.writeAll(");\n");
         }
     }
 }

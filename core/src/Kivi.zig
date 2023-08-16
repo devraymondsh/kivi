@@ -1,7 +1,5 @@
 const std = @import("std");
 const Mmap = @import("mmap.zig");
-const main = @import("main.zig");
-const Config = main.Config;
 
 len: usize,
 keysMmap: Mmap,
@@ -10,6 +8,12 @@ allocator: std.mem.Allocator,
 map: std.StringHashMapUnmanaged([]u8),
 
 const Kivi = @This();
+
+pub const Config = extern struct {
+    keys_mmap_size: usize = 300 * 1024 * 1024,
+    mmap_page_size: usize = 100 * 1024 * 1024,
+    values_mmap_size: usize = 700 * 1024 * 1024,
+};
 
 pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
     return .{

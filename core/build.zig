@@ -123,6 +123,11 @@ pub fn build(b: *std.Build) void {
     });
     codegen.addModule("Kivi", kivi);
     const codegen_run = b.addRunArtifact(codegen);
+
+    const codegen_step = b.step("codegen", "generate C header files");
+
+    codegen_step.dependOn(&codegen_run.step);
+
     ffi.unity.step.dependOn(&codegen_run.step);
     ffi.static.step.dependOn(&codegen_run.step);
     ffi.shared.step.dependOn(&codegen_run.step);

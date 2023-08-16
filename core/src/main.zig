@@ -2,12 +2,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Kivi = @import("Kivi.zig");
 
-pub const Config = extern struct {
-    keys_mmap_size: usize = 300 * 1024 * 1024,
-    mmap_page_size: usize = 100 * 1024 * 1024,
-    values_mmap_size: usize = 700 * 1024 * 1024,
-};
-
 // For debug info in FFI
 const is_debug = builtin.mode == std.builtin.Mode.Debug;
 export fn dump_stack_trace() void {
@@ -28,7 +22,7 @@ pub const _start = {};
 
 test "C-like" {
     var kv: Kivi = undefined;
-    const config_arg: ?*const Config = null;
+    const config_arg: ?*const Kivi.Config = null;
     try std.testing.expect(Kivi.kivi_init(&kv, config_arg) == @sizeOf(Kivi));
 
     try std.testing.expect(Kivi.kivi_set(&kv, "foo", "foo".len, "bar", "bar".len) == 3);

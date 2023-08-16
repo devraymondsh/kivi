@@ -7,19 +7,14 @@
 void dump_stack_trace(void);
 void setup_debug_handlers(void);
 
-struct Config
-{
+struct __attribute__((aligned(8))) Kivi {
+  char __opaque[120];
+};
+
+struct Config {
   size_t keys_mmap_size;
   size_t mmap_page_size;
   size_t values_mmap_size;
-};
-struct Str
-{
-  const char *ptr;
-  size_t len;
-};
-struct __attribute__((aligned(8))) Kivi {
-  char __opaque[120];
 };
 
 // TODO: Behavior documented in these comments
