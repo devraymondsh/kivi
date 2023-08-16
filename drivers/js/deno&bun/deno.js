@@ -14,19 +14,19 @@ switch (Deno.build.os) {
 export const dlopenLib = Deno.dlopen(
   `../../core/zig-out/lib/libkivi.${suffix}`,
   {
-    CollectionInit: { parameters: ["pointer"], result: "u32" },
-    CollectionDeinit: { parameters: ["pointer"], result: "void" },
-    CollectionGet: {
-      parameters: ["pointer", "pointer", "pointer", "usize"],
-      result: "void",
-    },
-    CollectionSet: {
+    kivi_init: { parameters: ["pointer", "pointer"], result: "u32" },
+    kivi_deinit: { parameters: ["pointer"], result: "void" },
+    kivi_get: {
       parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
-      result: "bool",
+      result: "u32",
     },
-    CollectionRmOut: {
-      parameters: ["pointer", "pointer", "usize"],
-      result: "void",
+    kivi_set: {
+      parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+      result: "u32",
+    },
+    kivi_del: {
+      parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+      result: "u32",
     },
   }
 );
@@ -36,7 +36,7 @@ export const denoUtils = {
     return Deno.UnsafePointer.of(value);
   },
   symbols: dlopenLib.symbols,
-  cstringToJs: function (addr, len, value_scratch) {
+  cstringToJs: function (value_scratch, len) {
     const ptr = Deno.UnsafePointer.create(addr);
     if (ptr == null) return null;
 

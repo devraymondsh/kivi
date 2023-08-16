@@ -7,17 +7,17 @@ if (isNodeJS()) {
   }
 }
 
-let RuntimeCollection;
+let RuntimeKivi;
 const { getRuntimeKind } = await import("./runtime.js");
 switch (getRuntimeKind()) {
   case "bun":
   case "deno":
-    const { DenoAndBunCollection } = await import("./deno&bun/index.js");
-    RuntimeCollection = DenoAndBunCollection;
+    const { DenoAndBunKivi } = await import("./deno&bun/index.js");
+    RuntimeKivi = DenoAndBunKivi;
     break;
   case "node":
-    const { NodeCollection } = await import("./nodejs/src/index.js");
-    RuntimeCollection = NodeCollection;
+    const { NodeKivi } = await import("./nodejs/src/index.js");
+    RuntimeKivi = NodeKivi;
     break;
   default:
     throw new Error(
@@ -25,16 +25,16 @@ switch (getRuntimeKind()) {
     );
 }
 
-export class Collection {
-  #InnerCollectionClass = new RuntimeCollection();
+export class Kivi {
+  #InnerKivi = new RuntimeKivi();
 
   constructor() {
-    if (this.#InnerCollectionClass.init() !== 0) {
-      throw new Error(`Failed to initialize a collection! ${res}`);
+    if (!this.#InnerKivi.init()) {
+      throw new Error(`Failed to initialize a Kivi!`);
     }
   }
   destroy() {
-    this.#InnerCollectionClass.destroy();
+    this.#InnerKivi.destroy();
   }
 
   /**
@@ -47,7 +47,7 @@ export class Collection {
       throw new Error("Key is too long!");
     }
 
-    return this.#InnerCollectionClass.get(key);
+    return this.#InnerKivi.get(key);
   }
   /**
    * Sets a key to the given value
@@ -63,7 +63,7 @@ export class Collection {
       throw new Error("Value is too long!");
     }
 
-    if (this.#InnerCollectionClass.set(key, value)) {
+    if (!this.#InnerKivi.set(key, value)) {
       throw new Error("Failed to insert!");
     }
   }
@@ -72,7 +72,7 @@ export class Collection {
    * @param {string} key
    * @returns {void}
    */
-  rm(/** @type {string} */ key) {
-    this.#InnerCollectionClass.rm(key);
+  del(/** @type {string} */ key) {
+    return this.#InnerKivi.del(key);
   }
 }

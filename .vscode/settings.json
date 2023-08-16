@@ -6,7 +6,7 @@
     "editor.defaultFormatter": "ms-vscode.cpptools"
   },
   "[javascript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "C_Cpp.default.includePath": [
     "${default}",

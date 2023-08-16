@@ -9,39 +9,40 @@ if (isBun()) {
   utils = denoUtils;
 }
 
-export class DenoAndBunCollection {
-  #buf = new ArrayBuffer(120);
-  #ptr = utils.makeBufferPtr(this.#buf);
-
-  #str_buf = new ArrayBuffer(16);
-  #str_ptr = utils.makeBufferPtr(this.#str_buf);
-  #str_dv = new DataView(this.#str_buf);
+export class DenoAndBunKivi {
+  #array_buf = new ArrayBuffer(120);
+  #buf = utils.makeBufferPtr(this.#array_buf);
 
   #key_scratch = new Uint8Array(4096);
   #key_scratch_ptr = utils.makeBufferPtr(this.#key_scratch);
-  value_scratch = new Uint8Array(4096);
-  #value_scratch_ptr = utils.makeBufferPtr(this.value_scratch);
+
+  #value_scratch = new Uint8Array(4096);
+  #value_scratch_ptr = utils.makeBufferPtr(this.#value_scratch);
 
   init() {
-    return utils.symbols.CollectionInit(this.#ptr);
+    return utils.symbols.kivi_init(this.#buf, null);
   }
   destroy() {
-    return utils.symbols.CollectionDeinit(this.#ptr);
+    return utils.symbols.kivi_deinit(this.#buf);
   }
 
   get(key) {
-    const res = new TextEncoder().encodeInto(key, this.#key_scratch);
-    utils.symbols.CollectionGet(
-      this.#ptr,
-      this.#str_ptr,
+    const encoded_str = new TextEncoder().encodeInto(key, this.#key_scratch);
+    const written_len = utils.symbols.kivi_get(
+      this.#buf,
       this.#key_scratch_ptr,
-      res.written
+      encoded_str.written,
+      this.#value_scratch_ptr,
+      4096
     );
 
-    const addr = this.#str_dv.getBigUint64(0, true);
-    const len = Number(this.#str_dv.getBigUint64(8, true));
+    if (written_len != 0) {
+      return new TextDecoder().decode(
+        this.#value_scratch.subarray(0, written_len)
+      );
+    }
 
-    return utils.cstringToJs(addr, len, this.value_scratch);
+    return null;
   }
   set(key, value) {
     const key_len = new TextEncoder().encodeInto(
@@ -50,28 +51,36 @@ export class DenoAndBunCollection {
     ).written;
     const value_len = new TextEncoder().encodeInto(
       value,
-      this.value_scratch
+      this.#value_scratch
     ).written;
 
-    return utils.symbols.CollectionSet(
-      this.#ptr,
+    return utils.symbols.kivi_set(
+      this.#buf,
       this.#key_scratch_ptr,
       key_len,
       this.#value_scratch_ptr,
       value_len
     );
   }
-  rm(key) {
+  del(key) {
     const key_len = new TextEncoder().encodeInto(
       key,
       this.#key_scratch
     ).written;
-
-    // TODO: Replace the line below with CollectionRm.
-    return utils.symbols.CollectionRmOut(
-      this.#ptr,
+    const written_len = utils.symbols.kivi_del(
+      this.#buf,
       this.#key_scratch_ptr,
-      key_len
+      key_len,
+      this.#value_scratch_ptr,
+      4096
     );
+
+    if (written_len != 0) {
+      return new TextDecoder().decode(
+        this.#value_scratch.subarray(0, written_len)
+      );
+    }
+
+    return null;
   }
 }

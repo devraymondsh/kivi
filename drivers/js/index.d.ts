@@ -1,8 +1,8 @@
-export class Collection {
+export class Kivi {
     constructor();
     destroy(): void;
 
-    rm(key: string): string | null;
+    del(key: string): string | null;
     get(key: string): string | null;
     set(key: string, value: string): void;
 }

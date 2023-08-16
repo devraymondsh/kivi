@@ -1,14 +1,24 @@
 import { dlopen, FFIType, suffix, ptr, CString } from "bun:ffi";
 
 export const dlopenLib = dlopen(`../../core/zig-out/lib/libkivi.${suffix}`, {
-  CollectionInit: {
-    args: [FFIType.ptr],
+  kivi_init: {
+    args: [FFIType.ptr, FFIType.ptr],
     returns: FFIType.u32,
   },
-  CollectionGet: {
-    args: [FFIType.ptr, FFIType.ptr, FFIType.cstring, FFIType.usize],
+  kivi_deinit: {
+    args: [FFIType.ptr, FFIType.ptr],
   },
-  CollectionSet: {
+  kivi_get: {
+    args: [
+      FFIType.ptr,
+      FFIType.cstring,
+      FFIType.usize,
+      FFIType.ptr,
+      FFIType.usize,
+    ],
+    returns: FFIType.u32,
+  },
+  kivi_set: {
     args: [
       FFIType.ptr,
       FFIType.cstring,
@@ -18,11 +28,15 @@ export const dlopenLib = dlopen(`../../core/zig-out/lib/libkivi.${suffix}`, {
     ],
     returns: FFIType.u32,
   },
-  CollectionRmOut: {
-    args: [FFIType.ptr, FFIType.cstring, FFIType.usize],
-  },
-  CollectionDeinit: {
-    args: [FFIType.ptr],
+  kivi_del: {
+    args: [
+      FFIType.ptr,
+      FFIType.cstring,
+      FFIType.usize,
+      FFIType.ptr,
+      FFIType.usize,
+    ],
+    returns: FFIType.u32,
   },
 });
 
@@ -31,9 +45,9 @@ export const bunUtils = {
     return ptr(value);
   },
   symbols: dlopenLib.symbols,
-  cstringToJs: function (addr, len) {
+  cstringToJs: function (value_scratch, len) {
     if (len != 0) {
-      return new CString(Number(addr), 0, len);
+      return new CString(value_scratch, 0, len);
     } else {
       return null;
     }
