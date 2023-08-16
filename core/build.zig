@@ -34,6 +34,7 @@ const FFI = struct {
     fn create(
         b: *std.Build,
         lib_src_path: []const u8,
+        lib_include_path: []const u8,
         static_lib: *std.Build.Step.Compile,
         shared_lib: *std.Build.Step.Compile,
         c_path: []const u8,
@@ -47,6 +48,7 @@ const FFI = struct {
                 const ffi = b.addExecutable(.{ .name = "ffi", .root_source_file = .{ .path = lib_src_path }, .target = target, .optimize = optimize });
                 ffi.strip = strip;
                 ffi.linkLibC();
+                ffi.addSystemIncludePath(.{ .path = lib_include_path });
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
                 break :b ffi;
             },
@@ -55,6 +57,7 @@ const FFI = struct {
                 ffi.strip = strip;
                 ffi.linkLibC();
                 ffi.linkLibrary(static_lib);
+                ffi.addSystemIncludePath(.{ .path = lib_include_path });
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
                 break :b ffi;
             },
@@ -63,6 +66,7 @@ const FFI = struct {
                 ffi.strip = strip;
                 ffi.linkLibC();
                 ffi.linkLibrary(shared_lib);
+                ffi.addSystemIncludePath(.{ .path = lib_include_path });
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
                 break :b ffi;
             },
@@ -78,6 +82,7 @@ pub fn build(b: *std.Build) void {
 
     const lib_name = "kivi";
     const lib_src_path = "src/main.zig";
+    const lib_include_path = "src/include";
 
     const c_ffi_path = "src/tests/ffi.c";
     const c_flags: []const []const u8 = switch (optimize) {
@@ -101,6 +106,7 @@ pub fn build(b: *std.Build) void {
     const ffi = FFI.create(
         b,
         lib_src_path,
+        lib_include_path,
         targets.libs.static,
         targets.libs.shared,
         c_ffi_path,
@@ -109,6 +115,7 @@ pub fn build(b: *std.Build) void {
         optimize,
         strip,
     );
+
     const ffi_step = b.step("ffi", "Run FFI tests");
 
     const kivi = b.createModule(.{

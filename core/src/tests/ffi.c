@@ -1,7 +1,7 @@
-#include <stdio.h>
 #include <assert.h>
+#include <kivi.h>
+#include <stdio.h>
 #include <string.h>
-#include "../headers/bindings.h"
 
 int main(void) {
   setup_debug_handlers();

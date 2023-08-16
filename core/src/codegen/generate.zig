@@ -98,7 +98,7 @@ fn generate_TypeScript_Types(writer: anytype) !void {
 }
 
 pub fn main() !void {
-    const file = try std.fs.cwd().createFile("src/headers/bindings.h", .{});
+    const file = try std.fs.cwd().createFile("src/include/kivi.h", .{});
     var output = std.io.bufferedWriter(file.writer());
     defer output.flush() catch {};
     const writer = output.writer();

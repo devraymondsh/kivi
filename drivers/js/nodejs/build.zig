@@ -23,7 +23,8 @@ pub fn build(b: *std.build.Builder) !void {
     // TODO: The addon segfaults for no reason in optimized builds so it's currently hardcoded as a Debug build.
     const shared = b.addSharedLibrary(.{ .name = "addon", .target = target, .optimize = optimize, .single_threaded = true });
     shared.linkLibC();
-    shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
+    shared.addSystemIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
+    shared.addSystemIncludePath(.{ .path = "../../../core/src/include" });
     shared.addLibraryPath(std.build.LazyPath.relative("../../../core/zig-out/lib"));
     shared.linkSystemLibrary2("kivi", .{ .preferred_link_mode = .Static });
     shared.addCSourceFile(.{ .flags = c_flags, .file = std.build.LazyPath.relative("src/main.c") });
