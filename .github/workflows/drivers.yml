@@ -8,10 +8,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: goto-bus-stop/setup-zig@v2
-      - run: sudo apt-get update && sudo apt-get install -y software-properties-common npm
-      - run: npm install -g npm@latest; npm install -g bun deno-bin
-      - run: cd core && zig build && cd ..
-      - run: cd drivers/js/nodejs && zig build && cd ..
-      - run: npm run nodejs-test
-      - run: npm run bun-test
-      - run: npm run deno-test
+      - name: Install npm
+        run: sudo apt-get update && sudo apt-get install -y software-properties-common npm
+      - name: Install Deno and Bun
+        run: npm install -g npm@latest; npm install -g bun deno-bin
+      - name: Build Kivi
+        run: cd core && zig build && cd ../drivers/js/nodejs && zig build
+      - name: Run Nodejs driver tests
+        run: cd drivers/js/nodejs && npm run nodejs-test
+      - name: Run Bun driver tests
+        run: cd drivers/js/nodejs && npm run bun-test
+      - name: Run Deno driver tests
+        run: cd drivers/js/nodejs && npm run deno-test
