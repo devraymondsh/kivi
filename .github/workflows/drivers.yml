@@ -10,6 +10,7 @@ jobs:
       - uses: goto-bus-stop/setup-zig@v2
       - run: sudo apt-get update && sudo apt-get install -y software-properties-common npm
       - run: npm install -g npm@latest; npm install -g bun deno-bin
+      - run: cd core && zig build && cd ..
       - run: cd drivers/js/nodejs && zig build && cd ..
       - run: npm run nodejs-test
       - run: npm run bun-test
