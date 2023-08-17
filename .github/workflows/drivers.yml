@@ -13,7 +13,7 @@ jobs:
       - name: Install Deno and Bun
         run: npm install -g npm@latest; npm install -g bun deno-bin
       - name: Build Kivi
-        run: cd core && zig build && cd ../drivers/js/nodejs && zig build
+        run: cd core && zig build && cd ../drivers/js/nodejs && npm install && zig build
       - name: Run Nodejs tests
         run: cd drivers/js && npm run nodejs-test
       - name: Run Bun tests
