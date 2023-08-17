@@ -15,8 +15,8 @@ jobs:
       - name: Build Kivi
         run: cd core && zig build && cd ../drivers/js/nodejs && zig build
       - name: Run Nodejs driver tests
-        run: cd drivers/js/nodejs && npm run nodejs-test
+        run: cd drivers/js && npm run nodejs-test
       - name: Run Bun driver tests
-        run: cd drivers/js/nodejs && npm run bun-test
+        run: cd drivers/js && npm run bun-test
       - name: Run Deno driver tests
-        run: cd drivers/js/nodejs && npm run deno-test
+        run: cd drivers/js && npm run deno-test
