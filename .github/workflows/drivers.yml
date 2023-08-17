@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: goto-bus-stop/setup-zig@v2
-      - run: apt-get update && apt-get install -y software-properties-common npm
+      - run: sudo apt-get update && sudo apt-get install -y software-properties-common npm
       - run: npm install -g npm@latest; npm install -g bun deno-bin
       - run: cd drivers/js/nodejs && zig build && cd ..
       - run: npm run nodejs-test
