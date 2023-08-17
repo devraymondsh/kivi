@@ -1,6 +1,11 @@
-import { dlopen, FFIType, suffix, ptr, CString } from "bun:ffi";
+import path from "path";
+import { dlopen, FFIType, suffix, ptr } from "bun:ffi";
 
-export const dlopenLib = dlopen(`../../core/zig-out/lib/libkivi.${suffix}`, {
+const dllPath = path.join(
+  __dirname,
+  `../../../core/zig-out/lib/libkivi.${suffix}`
+);
+export const dlopenLib = dlopen(dllPath, {
   kivi_init: {
     args: [FFIType.ptr, FFIType.ptr],
     returns: FFIType.u32,

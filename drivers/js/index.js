@@ -30,6 +30,7 @@ export class Kivi {
 
   constructor() {
     if (!this.#InnerKivi.init()) {
+      console.log(this.#InnerKivi.init());
       throw new Error(`Failed to initialize a Kivi!`);
     }
   }
