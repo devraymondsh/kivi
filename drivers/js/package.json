@@ -5,7 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "nodejs-test": "node tests/kivi.js",
+    "bun-test": "bun run tests/kivi.js",
+    "deno-test": "deno run --unstable --allow-ffi tests/kivi.js"
   },
   "author": "",
   "license": "ISC"
