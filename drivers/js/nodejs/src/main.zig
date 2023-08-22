@@ -1,5 +1,4 @@
 const Kivi = @import("Kivi");
-const std = @import("std");
 const c = @cImport({
     @cInclude("node_api.h");
 });
