@@ -16,17 +16,16 @@ pub fn build(b: *std.build.Builder) !void {
     npmi_step.makeFn = npmInstallFn;
 
     // Builds the addon
-    const c_flags: []const []const u8 = switch (optimize) {
-        .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-Ofast", "-flto=thin", "-pedantic", "-Wall", "-Wno-unused-variable" },
-        .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall" },
-    };
-    const shared = b.addSharedLibrary(.{ .name = "addon", .target = target, .optimize = optimize, .single_threaded = true });
-    shared.linkLibC();
-    shared.addLibraryPath(std.build.LazyPath.relative("../../../core/zig-out/lib"));
-    shared.addSystemIncludePath(std.build.LazyPath.relative("../../../core/src/include"));
+    const kivi_mod = b.createModule(.{
+        .source_file = .{ .path = "../../../core/src/Kivi.zig" },
+    });
+    const shared = b.addSharedLibrary(.{ .name = "addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize, .single_threaded = true });
+    shared.addModule("Kivi", kivi_mod);
     shared.addSystemIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
-    shared.linkSystemLibrary2("kivi", .{ .preferred_link_mode = .Static });
-    shared.addCSourceFile(.{ .flags = c_flags, .file = std.build.LazyPath.relative("src/main.c") });
+
+    if (optimize == .ReleaseFast) {
+        shared.strip = true;
+    }
 
     // Adds the build to the install artifact
     var install_step = b.getInstallStep();

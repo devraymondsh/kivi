@@ -1,7 +1,8 @@
 const std = @import("std");
-const Kivi = @import("Kivi");
+const main_mod = @import("main");
 
 const TypeMap = std.ComptimeStringMap([]const u8, .{
+    .{ "void", "void" },
     .{ "usize", "const size_t" },
     .{ "*Kivi", "struct Kivi *const" },
     .{ "*const Kivi", "const struct Kivi *const" },
@@ -31,29 +32,19 @@ inline fn mapTypeStr(comptime T: type, comptime config: struct { is_return_type:
     return mapped;
 }
 
-fn generate_C_headers(writer: anytype) !void {
-    try writer.print(
-        \\#pragma once
-        \\
-        \\#include <stdbool.h>
-        \\#include <stddef.h>
-        \\
-        \\// Debugging symbols
-        \\void dump_stack_trace(void);
-        \\void setup_debug_handlers(void);
-        \\
-        \\
-    , .{});
-    try writer.print(
-        \\struct __attribute__((aligned({}))) Kivi {{
-        \\  char __opaque[{}];
-        \\}};
-        \\
-        \\
-    , .{ @alignOf(Kivi), @sizeOf(Kivi) });
-    inline for (@typeInfo(Kivi).Struct.decls) |decl| {
-        if (std.mem.startsWith(u8, decl.name, "kivi_") or std.mem.eql(u8, decl.name, "Config")) {
-            const value = @field(Kivi, decl.name);
+fn generate_C_headers(comptime Type: type, writer: anytype) !void {
+    if (Type == main_mod.Kivi) {
+        try writer.print(
+            \\struct __attribute__((aligned({}))) Kivi {{
+            \\  char __opaque[{}];
+            \\}};
+            \\
+            \\
+        , .{ @alignOf(Type), @sizeOf(Type) });
+    }
+    inline for (@typeInfo(Type).Struct.decls) |decl| {
+        if (std.mem.startsWith(u8, decl.name, "kivi_") or std.mem.eql(u8, decl.name, "setup_debug_handlers") or std.mem.eql(u8, decl.name, "dump_stack_trace") or std.mem.eql(u8, decl.name, "Config")) {
+            const value = @field(Type, decl.name);
             const info = @typeInfo(@TypeOf(value));
             switch (info) {
                 .Type => switch (@typeInfo(value)) {
@@ -86,15 +77,10 @@ fn generate_C_headers(writer: anytype) !void {
                     }
                     try writer.writeAll(");\n");
                 },
-                else => @compileError("Unhandled case: " ++ @tagName(info)),
+                else => {},
             }
         }
     }
-}
-
-fn generate_TypeScript_Types(writer: anytype) !void {
-    _ = writer;
-    // TODO: 😎
 }
 
 pub fn main() !void {
@@ -102,5 +88,13 @@ pub fn main() !void {
     var output = std.io.bufferedWriter(file.writer());
     defer output.flush() catch {};
     const writer = output.writer();
-    try generate_C_headers(writer);
+
+    try writer.print(
+        \\#pragma once
+        \\#include <stddef.h>
+        \\
+        \\
+    , .{});
+    try generate_C_headers(main_mod.Kivi, writer);
+    try generate_C_headers(main_mod, writer);
 }

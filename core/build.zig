@@ -118,8 +118,11 @@ pub fn build(b: *std.Build) void {
 
     const ffi_step = b.step("ffi", "Run FFI tests");
 
-    const kivi = b.createModule(.{
+    const kivi_mod = b.createModule(.{
         .source_file = .{ .path = "src/Kivi.zig" },
+    });
+    const main_mod = b.createModule(.{
+        .source_file = .{ .path = "src/main.zig" },
     });
 
     const codegen = b.addExecutable(.{
@@ -128,7 +131,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .target = target,
     });
-    codegen.addModule("Kivi", kivi);
+    codegen.addModule("Kivi", kivi_mod);
+    codegen.addModule("main", main_mod);
     const codegen_run = b.addRunArtifact(codegen);
 
     const codegen_step = b.step("codegen", "generate C header files");

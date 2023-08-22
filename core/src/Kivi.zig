@@ -15,17 +15,7 @@ pub const Config = extern struct {
     values_mmap_size: usize = 700 * 1024 * 1024,
 };
 
-pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
-    return .{
-        .len = 0,
-        .allocator = allocator,
-        .map = std.StringHashMapUnmanaged([]u8){},
-        .keysMmap = try Mmap.init(config.keys_mmap_size, config.mmap_page_size),
-        .valuesMmap = try Mmap.init(config.values_mmap_size, config.mmap_page_size),
-    };
-}
-
-pub export fn kivi_init(self: *Kivi, config_arg: ?*const Config) usize {
+pub fn init(self: *Kivi, config_arg: ?*const Config) usize {
     const Arena = std.heap.ArenaAllocator;
     const GPA = std.heap.GeneralPurposeAllocator(.{});
     var arena_stack = Arena.init(std.heap.page_allocator);
@@ -68,10 +58,6 @@ pub fn deinit(self: *Kivi) void {
     self.valuesMmap.deinit();
 }
 
-pub export fn kivi_deinit(self: *Kivi) void {
-    self.deinit();
-}
-
 /// if val is null: returns length if pair exists, otherwise 0
 /// else: returns the bytes written if pair exists and value was successfully written, otherwise 0
 pub fn get(self: *const Kivi, key: []const u8, val: ?[]u8) usize {
@@ -84,10 +70,6 @@ pub fn get(self: *const Kivi, key: []const u8, val: ?[]u8) usize {
     if (val.?.len < stored.?.len) return 0;
     @memcpy(val.?[0..stored.?.len], stored.?);
     return stored.?.len;
-}
-
-pub export fn kivi_get(self: *const Kivi, key: [*]const u8, key_len: usize, val: ?[*]u8, val_len: usize) usize {
-    return self.get(key[0..key_len], if (val) |v| v[0..val_len] else null);
 }
 
 /// Returns value length if pair was successfully stored, otherwise 0
@@ -109,10 +91,6 @@ pub fn set(self: *Kivi, key: []const u8, val: []const u8) usize {
     return val.len;
 }
 
-pub export fn kivi_set(self: *Kivi, key: [*]const u8, key_len: usize, val: [*]const u8, val_len: usize) usize {
-    return self.set(key[0..key_len], val[0..val_len]);
-}
-
 pub fn del(self: *Kivi, key: []const u8, val: ?[]u8) usize {
     const stored = self.map.getPtr(key);
     if (stored == null) return 0;
@@ -125,8 +103,4 @@ pub fn del(self: *Kivi, key: []const u8, val: ?[]u8) usize {
     @memcpy(val.?[0..len], stored.?.*);
     self.map.removeByPtr(stored.?);
     return len;
-}
-
-pub export fn kivi_del(self: *Kivi, key: [*]const u8, key_len: usize, val: ?[*]u8, val_len: usize) usize {
-    return self.del(key[0..key_len], if (val) |v| v[0..val_len] else null);
 }

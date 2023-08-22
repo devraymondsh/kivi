@@ -1,11 +1,5 @@
 #pragma once
-
-#include <stdbool.h>
 #include <stddef.h>
-
-// Debugging symbols
-void dump_stack_trace(void);
-void setup_debug_handlers(void);
 
 struct __attribute__((aligned(8))) Kivi {
   char __opaque[120];
@@ -17,6 +11,10 @@ struct Config {
   size_t values_mmap_size;
 };
 
+// TODO: Behavior documented in these comments
+void dump_stack_trace();
+// TODO: Behavior documented in these comments
+void setup_debug_handlers();
 // TODO: Behavior documented in these comments
 size_t kivi_init(struct Kivi *const, const struct Config *const config);
 // TODO: Behavior documented in these comments
