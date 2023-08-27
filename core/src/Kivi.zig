@@ -66,18 +66,21 @@ pub fn get(self: *const Kivi, key: []const u8, val: ?[]u8) usize {
         return 0;
     }
     const stored = self.map.get(key);
-    if (stored == null) return 0;
-    if (val.?.len < stored.?.len) return 0;
+
+    if (stored == null or val.?.len < stored.?.len) return 0;
+
     @memcpy(val.?[0..stored.?.len], stored.?);
+
     return stored.?.len;
 }
 
 /// Returns value length if pair was successfully stored, otherwise 0
 pub fn set(self: *Kivi, key: []const u8, val: []const u8) usize {
     if (val.len == 0) return 0;
+
     const key_cur = self.keysMmap.cursor;
-    const keys_push_res = self.keysMmap.push(key) catch return 0;
     const value_cur = self.valuesMmap.cursor;
+    const keys_push_res = self.keysMmap.push(key) catch return 0;
     const values_push_res = self.valuesMmap.push(val) catch {
         self.keysMmap.cursor = key_cur;
         return 0;
@@ -88,19 +91,23 @@ pub fn set(self: *Kivi, key: []const u8, val: []const u8) usize {
         self.valuesMmap.cursor = value_cur;
         return 0;
     };
+
     return val.len;
 }
 
 pub fn del(self: *Kivi, key: []const u8, val: ?[]u8) usize {
     const stored = self.map.getPtr(key);
     if (stored == null) return 0;
+
     const len = stored.?.len;
     if (val == null) {
         self.map.removeByPtr(stored.?);
         return len;
     }
+
     if (val.?.len < len) return 0;
     @memcpy(val.?[0..len], stored.?.*);
     self.map.removeByPtr(stored.?);
+
     return len;
 }

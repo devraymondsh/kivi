@@ -1,4 +1,7 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+const is_windows: bool = builtin.os.tag == .windows;
 
 cursor: usize,
 page_size: usize,
@@ -15,14 +18,23 @@ fn mprotect(self: *Mmap) std.os.MProtectError!void {
 }
 
 pub fn init(total_size: usize, page_size: usize) !Mmap {
-    const mem = try std.os.mmap(
-        null,
-        std.mem.alignForward(usize, total_size, std.mem.page_size),
-        std.os.PROT.NONE,
-        std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
-        -1,
-        0,
-    );
+    var mem: []align(std.mem.page_size) u8 = undefined;
+    const size = std.mem.alignForward(usize, total_size, std.mem.page_size);
+    if (!is_windows) {
+        mem = try std.os.mmap(
+            null,
+            size,
+            std.os.PROT.NONE,
+            std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
+            -1,
+            0,
+        );
+    } else {
+        const lpvoid = try std.os.windows.VirtualAlloc(null, size, std.os.windows.MEM_RESERVE, std.os.windows.PAGE_NOACCESS);
+
+        mem.len = size;
+        mem.ptr = @alignCast(@ptrCast(lpvoid));
+    }
 
     var mmap = Mmap{ .mem = mem, .cursor = 0, .protected_mem_cursor = 0, .page_size = std.mem.alignForward(usize, page_size, std.mem.page_size) };
     mmap.mprotect() catch unreachable;
@@ -52,5 +64,9 @@ pub fn read_slice(self: *Mmap, from: usize, to: usize) []u8 {
 }
 
 pub fn deinit(self: *Mmap) void {
-    std.os.munmap(self.mem);
+    if (!is_windows) {
+        std.os.munmap(self.mem);
+    } else {
+        std.os.windows.VirtualFree(@alignCast(@ptrCast(self.mem.ptr)), 0, std.os.windows.MEM_RELEASE);
+    }
 }
