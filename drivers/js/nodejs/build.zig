@@ -30,9 +30,10 @@ pub fn build(b: *std.build.Builder) !void {
     const kivi_mod = b.createModule(.{
         .source_file = .{ .path = "../../../core/src/Kivi.zig" },
     });
-    const shared = b.addSharedLibrary(.{ .name = "addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize, .single_threaded = true });
+    const shared = b.addSharedLibrary(.{ .name = "addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize });
     shared.addModule("Kivi", kivi_mod);
-    shared.addSystemIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
+    shared.linker_allow_shlib_undefined = true;
+    shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
 
     if (optimize == .ReleaseFast) {
         shared.strip = true;
