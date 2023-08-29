@@ -1,12 +1,26 @@
 const { isBun, isDeno } = await import("../runtime.js");
 
-var utils = undefined;
+let utils = undefined;
+export let machine = undefined;
+export let platform = undefined;
 if (isBun()) {
-  const { bunUtils } = await import("./bun.js");
+  const {
+    bunUtils,
+    machine: bunMachine,
+    platform: bunPlatform,
+  } = await import("./bun.js");
   utils = bunUtils;
+  machine = bunMachine;
+  platform = bunPlatform;
 } else if (isDeno()) {
-  const { denoUtils } = await import("./deno.js");
+  const {
+    denoUtils,
+    machine: denoMachine,
+    platform: denoPlatform,
+  } = await import("./deno.js");
   utils = denoUtils;
+  machine = denoMachine;
+  platform = denoPlatform;
 }
 
 export class DenoAndBunKivi {

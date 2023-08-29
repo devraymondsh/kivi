@@ -1,5 +1,9 @@
+interface KiviConfig {
+    forceUseRuntimeFFI: ?boolean,
+}
+
 export class Kivi {
-    constructor();
+    constructor(config?: KiviConfig);
     destroy(): void;
 
     del(key: string): string | null;

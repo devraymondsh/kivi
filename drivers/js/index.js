@@ -8,6 +8,7 @@ if (isNodeJS()) {
 }
 
 let RuntimeKivi;
+const { NodeKivi } = await import("./nodejs/src/index.js");
 const { getRuntimeKind } = await import("./runtime.js");
 switch (getRuntimeKind()) {
   case "bun":
@@ -16,7 +17,6 @@ switch (getRuntimeKind()) {
     RuntimeKivi = DenoAndBunKivi;
     break;
   case "node":
-    const { NodeKivi } = await import("./nodejs/src/index.js");
     RuntimeKivi = NodeKivi;
     break;
   default:
@@ -26,9 +26,19 @@ switch (getRuntimeKind()) {
 }
 
 export class Kivi {
-  #InnerKivi = new RuntimeKivi();
+  #InnerKivi;
 
-  constructor() {
+  /**
+   * Returns the value of the given key
+   * @param {{ forceUseRuntimeFFI: ?bool }} config
+   */
+  constructor(config) {
+    if (config?.forceUseRuntimeFFI) {
+      this.#InnerKivi = new RuntimeKivi();
+    } else {
+      this.#InnerKivi = new NodeKivi();
+    }
+
     if (!this.#InnerKivi.init()) {
       console.log(this.#InnerKivi.init());
       throw new Error(`Failed to initialize a Kivi!`);

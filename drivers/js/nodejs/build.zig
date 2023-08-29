@@ -1,5 +1,4 @@
 const std = @import("std");
-const all_targets = .{ .cpu = .{ "x86_64", "aarch64" }, .os = .{ "windows", "linux", "macos" } };
 
 var optimize: std.builtin.OptimizeMode = undefined;
 fn npmInstallFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
@@ -8,7 +7,9 @@ fn npmInstallFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
         try self.evalChildProcess(&[_][]const u8{ "npm", "install" });
     }
 }
-fn buildAllFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
+
+pub const all_targets = .{ .cpu = .{ "x86_64", "aarch64" }, .os = .{ "windows", "linux", "macos" } };
+pub fn buildAllFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
     _ = progress;
     inline for (all_targets.os) |os| {
         inline for (all_targets.cpu) |cpu| {
@@ -21,6 +22,10 @@ fn buildAllFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
         }
     }
 }
+pub fn buildAll(b: *std.Build) void {
+    var build_all = b.step("all", "Build for all targets");
+    build_all.makeFn = buildAllFn;
+}
 
 fn formatTarget(target: std.Target, allocator: std.mem.Allocator, suffix: []const u8, ext: []const u8) !std.ArrayList(u8) {
     const arch = @tagName(target.cpu.arch);
@@ -28,12 +33,14 @@ fn formatTarget(target: std.Target, allocator: std.mem.Allocator, suffix: []cons
     const abi = @tagName(target.abi);
 
     var string = std.ArrayList(u8).init(allocator);
-    try string.writer().print("{s}-{s}-{s}-{s}.{s}", .{ arch, os, abi, suffix, ext });
+    try string.writer().print("{s}-{s}-{s}-{s}.{s}", .{ suffix, arch, os, abi, ext });
 
     return string;
 }
 
 pub fn build(b: *std.build.Builder) !void {
+    const x = b.addModule("core-build", .{ .source_file = std.Build.LazyPath.relative("../../../core/build.zig") });
+
     const target = b.standardTargetOptions(.{});
     optimize = b.standardOptimizeOption(.{});
     const target_info = try std.zig.system.NativeTargetInfo.detect(target);
@@ -48,13 +55,16 @@ pub fn build(b: *std.build.Builder) !void {
     });
     const shared = b.addSharedLibrary(.{ .name = "kivi-node-addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize });
     shared.addModule("Kivi", kivi_mod);
-    shared.linker_allow_shlib_undefined = true;
     shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
+    shared.force_pic = true;
+    shared.bundle_compiler_rt = true;
+    shared.linker_allow_shlib_undefined = true;
+
+    shared.addModule("core-build", x);
 
     if (optimize == .ReleaseFast) {
         shared.strip = true;
         shared.single_threaded = true;
-
         if (target_info.target.os.tag != .macos) {
             shared.want_lto = true;
         }
@@ -65,13 +75,13 @@ pub fn build(b: *std.build.Builder) !void {
     install_step.dependOn(npmi_step);
     b.installArtifact(shared);
 
-    // Makes an `addon.node` file in order to be used in Nodejs
+    // Makes a proper .node file in order to be used in Nodejs
     const formatted_target_obj = try formatTarget(target_info.target, std.heap.page_allocator, "kivi-addon", "node");
     defer formatted_target_obj.deinit();
     const node_addon_install = b.addInstallFileWithDir(shared.getOutputSource(), .lib, formatted_target_obj.items);
     node_addon_install.step.dependOn(&shared.step);
     install_step.dependOn(&node_addon_install.step);
 
-    var build_all = b.step("all", "Build for all targets");
-    build_all.makeFn = buildAllFn;
+    // Adds `build all` command
+    buildAll(b);
 }

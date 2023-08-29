@@ -11,8 +11,12 @@ switch (Deno.build.os) {
     break;
 }
 
+export const platform = Deno.build.os;
+export const machine = Deno.build.arch;
 const dllPath = new URL(
-  await import.meta.resolve(`../../../core/zig-out/lib/libkivi.${suffix}`)
+  await import.meta.resolve(
+    `../../../core/zig-out/lib/libkivi-${machine}-${platform}-none.${suffix}`
+  )
 );
 export const dlopenLib = Deno.dlopen(dllPath, {
   kivi_init: { parameters: ["pointer", "pointer"], result: "u32" },

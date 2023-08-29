@@ -1,8 +1,22 @@
 import { createRequire } from "node:module";
+import { isNodeJS } from "../../runtime.js";
 
 const require = createRequire(import.meta.url);
-const addon = require("../zig-out/lib/addon.node");
 
+let machine = undefined;
+let platform = undefined;
+if (isNodeJS()) {
+  const os = require("os");
+  machine = os.machine();
+  platform = os.platform();
+} else {
+  const { machine: denoOrBunMachine, platform: denoOrBunPlatform } =
+    await import("../../deno&bun/index.js");
+  machine = denoOrBunMachine;
+  platform = denoOrBunPlatform;
+}
+
+const addon = require(`../zig-out/lib/kivi-addon-${machine}-${platform}-none.node`);
 export class NodeKivi {
   #buf = new ArrayBuffer(120);
 

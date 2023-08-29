@@ -1,16 +1,25 @@
 const std = @import("std");
+var optimize: std.builtin.OptimizeMode = undefined;
 
 /// Build static and shared libraries given name and path
 const Libs = struct {
     static: *std.Build.Step.Compile,
     shared: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode, strip: ?bool) Libs {
-        const static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
-        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
+    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, target_info: std.zig.system.NativeTargetInfo, optimize_mode: std.builtin.Mode, strip: bool) Libs {
+        const static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
+        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
         static.strip = strip;
         shared.strip = strip;
         static.force_pic = true;
         shared.force_pic = true;
+        shared.single_threaded = true;
+        static.single_threaded = true;
+        shared.linker_allow_shlib_undefined = true;
+        if (target_info.target.os.tag != .macos) {
+            static.want_lto = true;
+            shared.want_lto = true;
+        }
+
         return .{ .static = static, .shared = shared };
     }
 };
@@ -19,10 +28,16 @@ const Libs = struct {
 const Targets = struct {
     libs: Libs,
     tests: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, optimize: std.builtin.Mode, strip: ?bool) Targets {
-        const tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize });
+    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, target_info: std.zig.system.NativeTargetInfo, optimize_mode: std.builtin.Mode) Targets {
+        const tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
+
+        var strip = false;
+        if (optimize_mode != .Debug) {
+            strip = true;
+        }
         tests.strip = strip;
-        return .{ .libs = Libs.create(b, name, path, target, optimize, strip), .tests = tests };
+
+        return .{ .libs = Libs.create(b, name, path, target, target_info, optimize_mode, strip), .tests = tests };
     }
 };
 
@@ -40,21 +55,18 @@ const FFI = struct {
         c_path: []const u8,
         c_flags: []const []const u8,
         target: std.zig.CrossTarget,
-        optimize: std.builtin.Mode,
-        strip: ?bool,
+        optimize_mode: std.builtin.Mode,
     ) FFI {
         return .{
             .unity = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi", .root_source_file = .{ .path = lib_src_path }, .target = target, .optimize = optimize });
-                ffi.strip = strip;
+                const ffi = b.addExecutable(.{ .name = "ffi", .root_source_file = .{ .path = lib_src_path }, .target = target, .optimize = optimize_mode });
                 ffi.linkLibC();
                 ffi.addSystemIncludePath(.{ .path = lib_include_path });
                 ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
                 break :b ffi;
             },
             .static = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi-static", .target = target, .optimize = optimize });
-                ffi.strip = strip;
+                const ffi = b.addExecutable(.{ .name = "ffi-static", .target = target, .optimize = optimize_mode });
                 ffi.linkLibC();
                 ffi.linkLibrary(static_lib);
                 ffi.addSystemIncludePath(.{ .path = lib_include_path });
@@ -62,8 +74,7 @@ const FFI = struct {
                 break :b ffi;
             },
             .shared = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi-shared", .target = target, .optimize = optimize });
-                ffi.strip = strip;
+                const ffi = b.addExecutable(.{ .name = "ffi-shared", .target = target, .optimize = optimize_mode });
                 ffi.linkLibC();
                 ffi.linkLibrary(shared_lib);
                 ffi.addSystemIncludePath(.{ .path = lib_include_path });
@@ -74,13 +85,35 @@ const FFI = struct {
     }
 };
 
-pub fn build(b: *std.Build) void {
+pub const all_targets = .{ .cpu = .{ "x86_64", "aarch64" }, .os = .{ "windows", "linux", "macos" } };
+pub fn buildAllFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
+    _ = progress;
+    inline for (all_targets.os) |os| {
+        inline for (all_targets.cpu) |cpu| {
+            var optimize_mode = std.ArrayList(u8).init(std.heap.page_allocator);
+            try optimize_mode.writer().print("-Doptimize={s}", .{@tagName(optimize)});
+            var target_mode = std.ArrayList(u8).init(std.heap.page_allocator);
+            try target_mode.writer().print("-Dtarget={s}-{s}-none", .{ cpu, os });
+
+            try self.evalChildProcess(&[_][]const u8{ "zig", "build", optimize_mode.items, target_mode.items });
+        }
+    }
+}
+pub fn buildAll(b: *std.Build) void {
+    var build_all = b.step("all", "Build for all targets");
+    build_all.makeFn = buildAllFn;
+}
+
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
+    optimize = b.standardOptimizeOption(.{});
+    const target_info = try std.zig.system.NativeTargetInfo.detect(target);
 
-    const strip = b.option(bool, "strip", "strip binaries");
+    var lib_name_arrlist = std.ArrayList(u8).init(std.heap.page_allocator);
+    try lib_name_arrlist.writer().print("kivi-{s}-{s}-{s}", .{ @tagName(target_info.target.cpu.arch), @tagName(target_info.target.os.tag), @tagName(target_info.target.abi) });
+    defer lib_name_arrlist.deinit();
 
-    const lib_name = "kivi";
+    const lib_name = lib_name_arrlist.items;
     const lib_src_path = "src/main.zig";
     const lib_include_path = "src/include";
 
@@ -91,7 +124,7 @@ pub fn build(b: *std.Build) void {
         .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" },
     };
 
-    const targets = Targets.create(b, lib_name, lib_src_path, target, optimize, strip);
+    const targets = Targets.create(b, lib_name, lib_src_path, target, target_info, optimize);
 
     // Run tests on `zig build test`
     const run_main_tests = b.addRunArtifact(targets.tests);
@@ -113,7 +146,6 @@ pub fn build(b: *std.Build) void {
         c_flags,
         target,
         optimize,
-        strip,
     );
 
     const ffi_step = b.step("ffi", "Run FFI tests");
@@ -147,6 +179,8 @@ pub fn build(b: *std.Build) void {
         const run = b.addRunArtifact(@field(ffi, field.name));
         ffi_step.dependOn(&run.step);
     }
-
     test_step.dependOn(ffi_step);
+
+    // Adds `build all` command
+    buildAll(b);
 }
