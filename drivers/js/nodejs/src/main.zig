@@ -1,65 +1,68 @@
+const std = @import("std");
 const Kivi = @import("Kivi");
-const c = @cImport({
+const symbols = @import("symbols.zig");
+const ntypes = @cImport({
     @cInclude("node_api.h");
 });
 
 const DEFAULT_BUF_SIZE: comptime_int = 4096;
 
-fn get_args(env: c.napi_env, info: c.napi_callback_info, arg_count: [*c]usize, args: [*c]c.napi_value) usize {
-    var cb_status: c.napi_status = c.napi_get_cb_info(env, info, arg_count, args, null, null);
-    if (cb_status == c.napi_ok) {
+fn get_args(env: ntypes.napi_env, info: ntypes.napi_callback_info, arg_count: [*c]usize, args: [*c]ntypes.napi_value) usize {
+    var cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
+    if (cb_status == ntypes.napi_ok) {
         return arg_count.*;
     }
-    _ = c.napi_throw_error(env, "1", "INVALID_ARGS");
+    _ = symbols.napi_throw_error(env, "1", "INVALID_ARGS");
+
     return 0;
 }
-fn arg_to_kivi(env: c.napi_env, arraybuffer: c.napi_value) ?*Kivi {
+fn arg_to_kivi(env: ntypes.napi_env, arraybuffer: ntypes.napi_value) ?*Kivi {
     var length: usize = undefined;
     var ptr: ?*anyopaque = undefined;
-    if (c.napi_get_arraybuffer_info(env, arraybuffer, &ptr, &length) == c.napi_ok) {
+    if (symbols.napi_get_arraybuffer_info(env, arraybuffer, &ptr, &length) == ntypes.napi_ok) {
         return @as(*Kivi, @ptrCast(@alignCast(ptr)));
     }
     return null;
 }
-fn string_to_buffer(env: c.napi_env, arraybuffer: c.napi_value, buf: []u8, bufsize: usize) usize {
+fn string_to_buffer(env: ntypes.napi_env, arraybuffer: ntypes.napi_value, buf: []u8, bufsize: usize) usize {
     var len: usize = undefined;
-    if (c.napi_get_value_string_utf8(env, arraybuffer, buf.ptr, bufsize, &len) == c.napi_ok) {
+    if (symbols.napi_get_value_string_utf8(env, arraybuffer, buf.ptr, bufsize, &len) == ntypes.napi_ok) {
         return len;
     }
     return 0;
 }
-fn buffer_to_string(env: c.napi_env, buf: []u8, bufsize: usize) c.napi_value {
-    var string: c.napi_value = undefined;
-    if (c.napi_create_string_utf8(env, buf.ptr, bufsize, &string) == c.napi_ok) {
+fn buffer_to_string(env: ntypes.napi_env, buf: []u8, bufsize: usize) ntypes.napi_value {
+    var string: ntypes.napi_value = undefined;
+    if (symbols.napi_create_string_utf8(env, buf.ptr, bufsize, &string) == ntypes.napi_ok) {
         return string;
     }
     return null;
 }
-fn new_unint(env: c.napi_env, value: u32) c.napi_value {
-    var result: c.napi_value = undefined;
-    if (c.napi_create_uint32(env, value, &result) == c.napi_ok) {
+fn new_unint(env: ntypes.napi_env, value: u32) ntypes.napi_value {
+    var result: ntypes.napi_value = undefined;
+    if (symbols.napi_create_uint32(env, value, &result) == ntypes.napi_ok) {
         return result;
     }
     return null;
 }
-fn new_null(env: c.napi_env) c.napi_value {
-    var null_value: c.napi_value = undefined;
-    if (c.napi_get_null(env, &null_value) == c.napi_ok) {
+fn new_null(env: ntypes.napi_env) ntypes.napi_value {
+    var null_value: ntypes.napi_value = undefined;
+    if (symbols.napi_get_null(env, &null_value) == ntypes.napi_ok) {
         return null_value;
     }
     return null;
 }
-fn new_undefined(env: c.napi_env) c.napi_value {
-    var undefined_value: c.napi_value = undefined;
-    if (c.napi_get_undefined(env, &undefined_value) == c.napi_ok) {
+fn new_undefined(env: ntypes.napi_env) ntypes.napi_value {
+    var undefined_value: ntypes.napi_value = undefined;
+    if (symbols.napi_get_undefined(env, &undefined_value) == ntypes.napi_ok) {
         return undefined_value;
     }
     return null;
 }
 
-pub export fn kivi_init_js(env: c.napi_env, info: c.napi_callback_info) c.napi_value {
+pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 1;
-    var args: [1]c.napi_value = undefined;
+    var args: [1]ntypes.napi_value = undefined;
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
@@ -69,9 +72,9 @@ pub export fn kivi_init_js(env: c.napi_env, info: c.napi_callback_info) c.napi_v
     }
     return new_null(env);
 }
-pub export fn kivi_deinit_js(env: c.napi_env, info: c.napi_callback_info) c.napi_value {
+pub export fn kivi_deinit_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 1;
-    var args: [1]c.napi_value = undefined;
+    var args: [1]ntypes.napi_value = undefined;
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
@@ -79,9 +82,9 @@ pub export fn kivi_deinit_js(env: c.napi_env, info: c.napi_callback_info) c.napi
 
     return new_undefined(env);
 }
-pub export fn kivi_get_js(env: c.napi_env, info: c.napi_callback_info) c.napi_value {
+pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
-    var args: [2]c.napi_value = undefined;
+    var args: [2]ntypes.napi_value = undefined;
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
@@ -99,9 +102,9 @@ pub export fn kivi_get_js(env: c.napi_env, info: c.napi_callback_info) c.napi_va
 
     return buffer_to_string(env, &value_buf, value_len);
 }
-pub export fn kivi_set_js(env: c.napi_env, info: c.napi_callback_info) c.napi_value {
+pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 3;
-    var args: [3]c.napi_value = undefined;
+    var args: [3]ntypes.napi_value = undefined;
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
@@ -118,9 +121,9 @@ pub export fn kivi_set_js(env: c.napi_env, info: c.napi_callback_info) c.napi_va
 
     return new_unint(env, @intCast(kivi_result));
 }
-pub export fn kivi_del_js(env: c.napi_env, info: c.napi_callback_info) c.napi_value {
+pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
-    var args: [2]c.napi_value = undefined;
+    var args: [2]ntypes.napi_value = undefined;
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
@@ -144,7 +147,7 @@ pub export fn node_api_module_get_api_version_v1() i32 {
 }
 const Function = struct {
     name: [*c]const u8,
-    method: ?*const fn (?*c.struct_napi_env__, ?*c.struct_napi_callback_info__) callconv(.C) ?*c.struct_napi_value__,
+    method: ?*const fn (?*ntypes.struct_napi_env__, ?*ntypes.struct_napi_callback_info__) callconv(.C) ?*ntypes.struct_napi_value__,
 };
 const functions = [5]Function{ Function{
     .name = "kivi_init",
@@ -162,8 +165,8 @@ const functions = [5]Function{ Function{
     .name = "kivi_deinit",
     .method = &kivi_deinit_js,
 } };
-pub export fn napi_register_module_v1(env: c.napi_env, exports: c.napi_value) c.napi_value {
-    var bindings: [5]c.napi_property_descriptor = undefined;
+pub export fn napi_register_module_v1(env: ntypes.napi_env, exports: ntypes.napi_value) ntypes.napi_value {
+    var bindings: [5]ntypes.napi_property_descriptor = undefined;
     inline for (functions, 0..) |function, index| {
         bindings[index] = .{
             .utf8name = function.name,
@@ -172,14 +175,14 @@ pub export fn napi_register_module_v1(env: c.napi_env, exports: c.napi_value) c.
             .getter = null,
             .setter = null,
             .value = null,
-            .attributes = c.napi_enumerable,
+            .attributes = ntypes.napi_enumerable,
             .data = null,
         };
     }
 
-    const define_properties_status = c.napi_define_properties(env, exports, 5, &bindings);
-    if (define_properties_status != c.napi_ok) {
-        _ = c.napi_throw_error(env, "0", "FAILED_TO_DEFINE_FUNCTIONS");
+    const define_properties_status = symbols.napi_define_properties(env, exports, 5, &bindings);
+    if (define_properties_status != ntypes.napi_ok) {
+        _ = symbols.napi_throw_error(env, "0", "FAILED_TO_DEFINE_FUNCTIONS");
     }
 
     return exports;
