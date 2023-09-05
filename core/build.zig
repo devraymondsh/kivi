@@ -43,14 +43,10 @@ const Targets = struct {
 
 /// Build binaries from C code testing usage of libraries in a unity build (single translation unit) + static library build + shared library build
 const FFI = struct {
-    unity: *std.Build.Step.Compile,
-    static: *std.Build.Step.Compile,
     shared: *std.Build.Step.Compile,
     fn create(
         b: *std.Build,
-        lib_src_path: []const u8,
         lib_include_path: []const u8,
-        static_lib: *std.Build.Step.Compile,
         shared_lib: *std.Build.Step.Compile,
         c_path: []const u8,
         c_flags: []const []const u8,
@@ -58,21 +54,6 @@ const FFI = struct {
         optimize_mode: std.builtin.Mode,
     ) FFI {
         return .{
-            .unity = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi", .root_source_file = .{ .path = lib_src_path }, .target = target, .optimize = optimize_mode });
-                ffi.linkLibC();
-                ffi.addSystemIncludePath(.{ .path = lib_include_path });
-                ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
-                break :b ffi;
-            },
-            .static = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi-static", .target = target, .optimize = optimize_mode });
-                ffi.linkLibC();
-                ffi.linkLibrary(static_lib);
-                ffi.addSystemIncludePath(.{ .path = lib_include_path });
-                ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
-                break :b ffi;
-            },
             .shared = b: {
                 const ffi = b.addExecutable(.{ .name = "ffi-shared", .target = target, .optimize = optimize_mode });
                 ffi.linkLibC();
@@ -138,9 +119,7 @@ pub fn build(b: *std.Build) !void {
     // Build and run C programs using 3 "linkage modes"
     const ffi = FFI.create(
         b,
-        lib_src_path,
         lib_include_path,
-        targets.libs.static,
         targets.libs.shared,
         c_ffi_path,
         c_flags,
@@ -171,8 +150,6 @@ pub fn build(b: *std.Build) !void {
 
     codegen_step.dependOn(&codegen_run.step);
 
-    ffi.unity.step.dependOn(&codegen_run.step);
-    ffi.static.step.dependOn(&codegen_run.step);
     ffi.shared.step.dependOn(&codegen_run.step);
 
     inline for (@typeInfo(FFI).Struct.fields) |field| {

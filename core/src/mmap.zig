@@ -12,7 +12,12 @@ const Mmap = @This();
 
 fn mprotect(self: *Mmap) std.os.MProtectError!void {
     const protected_mem_cursor = self.protected_mem_cursor + self.page_size;
-    try std.os.mprotect(@alignCast(self.mem[self.protected_mem_cursor..protected_mem_cursor]), std.os.PROT.READ | std.os.PROT.WRITE);
+
+    if (!is_windows) {
+        try std.os.mprotect(@alignCast(self.mem[self.protected_mem_cursor..protected_mem_cursor]), std.os.PROT.READ | std.os.PROT.WRITE);
+    } else {
+        _ = try std.os.windows.VirtualAlloc(@ptrCast(@alignCast(self.mem)), protected_mem_cursor, std.os.windows.MEM_COMMIT, std.os.windows.PAGE_READWRITE);
+    }
 
     self.protected_mem_cursor = protected_mem_cursor;
 }

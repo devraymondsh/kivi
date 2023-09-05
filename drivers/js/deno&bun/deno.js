@@ -11,11 +11,18 @@ switch (Deno.build.os) {
     break;
 }
 
-export const platform = Deno.build.os;
 export const machine = Deno.build.arch;
+export let platform = Deno.build.os;
+let libNamePrefix = "lib";
+if (platform == "win32") {
+  platform = "windows";
+}
+if (platform == "windows") {
+  libNamePrefix = "";
+}
 const dllPath = new URL(
   await import.meta.resolve(
-    `../../../core/zig-out/lib/libkivi-${machine}-${platform}-none.${suffix}`
+    `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}-none.${suffix}`
   )
 );
 export const dlopenLib = Deno.dlopen(dllPath, {

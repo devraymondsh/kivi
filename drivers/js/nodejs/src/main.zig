@@ -166,6 +166,8 @@ const functions = [5]Function{ Function{
     .method = &kivi_deinit_js,
 } };
 pub export fn napi_register_module_v1(env: ntypes.napi_env, exports: ntypes.napi_value) ntypes.napi_value {
+    symbols.init_symbols();
+
     var bindings: [5]ntypes.napi_property_descriptor = undefined;
     inline for (functions, 0..) |function, index| {
         bindings[index] = .{

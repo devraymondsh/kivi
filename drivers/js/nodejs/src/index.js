@@ -15,6 +15,9 @@ if (isNodeJS()) {
   machine = denoOrBunMachine;
   platform = denoOrBunPlatform;
 }
+if (platform == "win32") {
+  platform = "windows";
+}
 
 const addon = require(`../zig-out/lib/kivi-addon-${machine}-${platform}-none.node`);
 export class NodeKivi {
