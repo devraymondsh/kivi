@@ -8,8 +8,5 @@
     "build": "zig build"
   },
   "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "node-api-headers": "*"
-  }
+  "license": "ISC"
 }

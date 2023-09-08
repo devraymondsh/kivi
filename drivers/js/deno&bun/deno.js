@@ -22,7 +22,7 @@ if (platform == "windows") {
 }
 const dllPath = new URL(
   await import.meta.resolve(
-    `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}-none.${suffix}`
+    `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
   )
 );
 export const dlopenLib = Deno.dlopen(dllPath, {

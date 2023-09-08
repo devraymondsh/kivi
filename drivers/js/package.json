@@ -7,7 +7,7 @@
   "scripts": {
     "nodejs-test": "node tests/kivi.js",
     "bun-test": "bun run tests/kivi.js",
-    "deno-test": "deno run --unstable --allow-ffi tests/kivi.js"
+    "deno-test": "deno run --unstable --allow-all tests/kivi.js"
   },
   "author": "",
   "license": "ISC"

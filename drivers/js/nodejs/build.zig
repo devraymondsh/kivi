@@ -1,13 +1,6 @@
 const std = @import("std");
 
 var optimize: std.builtin.OptimizeMode = undefined;
-fn npmInstallFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
-    _ = progress;
-    if (std.fs.cwd().openDir("node_modules/node-api-headers", .{})) |_| {} else |_| {
-        try self.evalChildProcess(&[_][]const u8{ "npm", "install" });
-    }
-}
-
 pub const all_targets = .{ .cpu = .{ "x86_64", "aarch64" }, .os = .{ "windows", "linux", "macos" } };
 pub fn buildAllFn(self: *std.build.Step, progress: *std.Progress.Node) !void {
     _ = progress;
@@ -30,10 +23,9 @@ pub fn buildAll(b: *std.Build) void {
 fn formatTarget(target: std.Target, allocator: std.mem.Allocator, suffix: []const u8, ext: []const u8) !std.ArrayList(u8) {
     const arch = @tagName(target.cpu.arch);
     const os = @tagName(target.os.tag);
-    const abi = @tagName(target.abi);
 
     var string = std.ArrayList(u8).init(allocator);
-    try string.writer().print("{s}-{s}-{s}-{s}.{s}", .{ suffix, arch, os, abi, ext });
+    try string.writer().print("{s}-{s}-{s}.{s}", .{ suffix, arch, os, ext });
 
     return string;
 }
@@ -45,20 +37,16 @@ pub fn build(b: *std.build.Builder) !void {
     optimize = b.standardOptimizeOption(.{});
     const target_info = try std.zig.system.NativeTargetInfo.detect(target);
 
-    // Installs required headers
-    var npmi_step = b.step("npm-install", "Install npm packages");
-    npmi_step.makeFn = npmInstallFn;
-
     // Builds the addon
     const kivi_mod = b.createModule(.{
         .source_file = .{ .path = "../../../core/src/Kivi.zig" },
     });
     const shared = b.addSharedLibrary(.{ .name = "kivi-node-addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize });
-    shared.addModule("Kivi", kivi_mod);
-    shared.addIncludePath(std.build.LazyPath.relative("node_modules/node-api-headers/include"));
     shared.force_pic = true;
     shared.bundle_compiler_rt = true;
     shared.linker_allow_shlib_undefined = true;
+    shared.addModule("Kivi", kivi_mod);
+    shared.addIncludePath(std.build.LazyPath.relative("src/napi-headers"));
 
     shared.addModule("core-build", x);
 
@@ -72,7 +60,6 @@ pub fn build(b: *std.build.Builder) !void {
 
     // Adds the build to the install artifact
     var install_step = b.getInstallStep();
-    install_step.dependOn(npmi_step);
     b.installArtifact(shared);
 
     // Makes a proper .node file in order to be used in Nodejs

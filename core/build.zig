@@ -15,6 +15,7 @@ const Libs = struct {
         shared.single_threaded = true;
         static.single_threaded = true;
         shared.linker_allow_shlib_undefined = true;
+        static.linker_allow_shlib_undefined = true;
         if (target_info.target.os.tag != .macos) {
             static.want_lto = true;
             shared.want_lto = true;
@@ -91,7 +92,7 @@ pub fn build(b: *std.Build) !void {
     const target_info = try std.zig.system.NativeTargetInfo.detect(target);
 
     var lib_name_arrlist = std.ArrayList(u8).init(std.heap.page_allocator);
-    try lib_name_arrlist.writer().print("kivi-{s}-{s}-{s}", .{ @tagName(target_info.target.cpu.arch), @tagName(target_info.target.os.tag), @tagName(target_info.target.abi) });
+    try lib_name_arrlist.writer().print("kivi-{s}-{s}", .{ @tagName(target_info.target.cpu.arch), @tagName(target_info.target.os.tag) });
     defer lib_name_arrlist.deinit();
 
     const lib_name = lib_name_arrlist.items;

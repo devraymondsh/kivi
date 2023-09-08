@@ -19,7 +19,7 @@ if (platform == "win32") {
   platform = "windows";
 }
 
-const addon = require(`../zig-out/lib/kivi-addon-${machine}-${platform}-none.node`);
+const addon = require(`../zig-out/lib/kivi-addon-${machine}-${platform}.node`);
 export class NodeKivi {
   #buf = new ArrayBuffer(120);
 

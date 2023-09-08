@@ -13,7 +13,7 @@ if (platform == "windows") {
 }
 const dllPath = path.join(
   __dirname,
-  `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}-none.${suffix}`
+  `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
 );
 export const dlopenLib = dlopen(dllPath, {
   kivi_init: {
