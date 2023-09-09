@@ -1,0 +1,16 @@
+{
+  "name": "faker",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main": "generate.js",
+  "scripts": {
+    "gen": "node generate.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@faker-js/faker": "^8.0.2",
+    "big-json": "^3.2.0"
+  }
+}
