@@ -17,7 +17,7 @@ const resolveOnEmit = (event) => {
 };
 
 let data;
-const dataJsonPath = "data/data.json";
+const dataJsonPath = "faker/data/data.json";
 console.log("Loading the data. Please be patient.");
 if (!isBun()) {
   if (!fs.existsSync(dataJsonPath)) {

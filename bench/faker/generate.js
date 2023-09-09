@@ -23,7 +23,7 @@ for (let i = 0; i <= count; i++) {
 }
 
 console.log("Writing the data. Please be patient.");
-const writeStream = fs.createWriteStream("../data/data.json");
+const writeStream = fs.createWriteStream("./data/data.json");
 const stringifyStream = json.createStringifyStream({
   body: arr,
 });

@@ -5,7 +5,7 @@
   "description": "",
   "main": "bench-with-builtin.js",
   "scripts": {
-    "node-bench": "node bench-with-builtin.js",
+    "nodejs-bench": "node bench-with-builtin.js",
     "bun-bench": " bun run bench-with-builtin.js",
     "deno-bench": "deno run --unstable --allow-all --v8-flags='--max-heap-size=2000,--max-old-space-size=2000' bench-with-builtin.js"
   },

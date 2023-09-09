@@ -2,7 +2,7 @@
 **/zig-out
 bench/**/node_modules
 bench/**/package-lock.json
-bench/data/*
-!bench/data/README.md
+bench/faker/data/*
+!bench/faker/data/README.md
 drivers/**/node_modules
 drivers/**/package-lock.json
