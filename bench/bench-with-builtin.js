@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import json from "big-json";
 import { Kivi } from "../drivers/js/index.js";
-import { isNodeJS, isBun } from "../drivers/js/runtime.js";
+import { isNotNodeJS, isBun } from "../drivers/js/runtime.js";
 
 const benchmarkRepeat = 100;
 
@@ -119,7 +119,9 @@ for (let i = 0; i <= benchmarkRepeat; i++) {
   jsMapResults.push(jsMapBench());
   plainJsObjectReults.push(plainJsObjectBench());
   kiviNapiResults.push(kiviBench(false));
-  if (!isNodeJS()) kiviFFIResults.push(kiviBench(true));
+  if (isNotNodeJS()) {
+    kiviFFIResults.push(kiviBench(true));
+  }
   console.log(
     "------------------------------------------------------------------------"
   );
@@ -140,7 +142,7 @@ const [
 console.log(`JS Map average\t`, jsMapResultsAverage, "ms");
 console.log(`JS Object average\t`, plainJsObjectReultsAverage, "ms");
 console.log(`Kivi using Napi average\t`, kiviNapiResultsAverage, "ms");
-if (!isNodeJS()) {
+if (isNotNodeJS()) {
   console.log(
     `Kivi using runtime's FFI average\t`,
     kiviFFIResultsAverage,
