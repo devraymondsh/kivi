@@ -10,7 +10,7 @@ mem: []align(std.mem.page_size) u8,
 
 const Mmap = @This();
 
-fn mprotect(self: *Mmap) std.os.MProtectError!void {
+fn mprotect(self: *Mmap) !void {
     const protected_mem_cursor = self.protected_mem_cursor + self.page_size;
 
     if (!is_windows) {
@@ -47,7 +47,7 @@ pub fn init(total_size: usize, page_size: usize) !Mmap {
     return mmap;
 }
 
-pub fn push(self: *Mmap, data: []const u8) std.os.MProtectError![]u8 {
+pub fn push(self: *Mmap, data: []const u8) ![]u8 {
     const starting_pos = self.cursor;
     const ending_pos = starting_pos + data.len;
 
@@ -62,10 +62,6 @@ pub fn push(self: *Mmap, data: []const u8) std.os.MProtectError![]u8 {
     self.cursor = ending_pos;
 
     return slice;
-}
-
-pub fn read_slice(self: *Mmap, from: usize, to: usize) []u8 {
-    return self.mem[from .. from + to];
 }
 
 pub fn deinit(self: *Mmap) void {

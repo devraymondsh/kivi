@@ -1,113 +1,155 @@
 const std = @import("std");
-const Mmap = @import("mmap.zig");
+const MMap = @import("Mmap.zig");
+const GPA = std.heap.GeneralPurposeAllocator(.{});
 
-len: usize,
-keysMmap: Mmap,
-valuesMmap: Mmap,
+pub const Config = extern struct {
+    maximum_elments: usize = 10_000_000,
+    keys_mem_size: usize = 2000 * 1024 * 1024,
+    keys_page_size: usize = 100 * 1024 * 1024,
+    values_mem_size: usize = 2000 * 1024 * 1024,
+    values_page_size: usize = 100 * 1024 * 1024,
+};
+const Entry = struct {
+    key: ?[]u8,
+    value: []u8,
+};
+
 allocator: std.mem.Allocator,
-map: std.StringHashMapUnmanaged([]u8),
+entries: []Entry,
+gpa: bool = false,
+keys_mmap: MMap,
+table_size: usize,
+values_mmap: MMap,
 
 const Kivi = @This();
 
-pub const Config = extern struct {
-    keys_mmap_size: usize = 300 * 1024 * 1024,
-    mmap_page_size: usize = 100 * 1024 * 1024,
-    values_mmap_size: usize = 700 * 1024 * 1024,
-};
+fn upper_power_of_two(n_arg: u64) u64 {
+    var n = n_arg;
+    n -= 1;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n |= n >> 32;
+    n += 1;
 
-pub fn init(self: *Kivi, config_arg: ?*const Config) usize {
-    const Arena = std.heap.ArenaAllocator;
-    const GPA = std.heap.GeneralPurposeAllocator(.{});
-    var arena_stack = Arena.init(std.heap.page_allocator);
-    const arena = arena_stack.allocator().create(Arena) catch return 0;
-    arena.* = arena_stack;
-    const gpa = arena.allocator().create(GPA) catch {
-        arena_stack.allocator().destroy(arena);
-        return 0;
-    };
-    gpa.* = GPA{};
-    self.len = 0;
-    self.allocator = gpa.allocator();
+    return n;
+}
+fn key_to_possible_index(self: *const Kivi, key: []const u8) usize {
+    return std.hash.Wyhash.hash(0, key) % self.table_size;
+}
 
-    var config = Config{};
-    if (config_arg != null) {
-        config.mmap_page_size = config_arg.?.mmap_page_size;
-        config.keys_mmap_size = config_arg.?.keys_mmap_size;
-        config.values_mmap_size = config_arg.?.values_mmap_size;
-    }
+pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
+    var gpa = GPA{};
+    const heap_gpa = try gpa.allocator().create(GPA);
+    heap_gpa.* = gpa;
 
-    self.keysMmap = Mmap.init(config.keys_mmap_size, config.mmap_page_size) catch {
-        arena.allocator().destroy(gpa);
-        arena_stack.allocator().destroy(arena);
-        return 0;
-    };
-    self.valuesMmap = Mmap.init(config.values_mmap_size, config.mmap_page_size) catch {
-        self.keysMmap.deinit();
-        arena.allocator().destroy(gpa);
-        arena_stack.allocator().destroy(arena);
-        return 0;
-    };
-    self.map = .{};
+    const maximum_elements = upper_power_of_two(config.maximum_elments);
+
+    self.allocator = heap_gpa.allocator();
+    const entries = try self.allocator.alloc(Entry, maximum_elements);
+    @memset(entries, Entry{ .key = null, .value = undefined });
+
+    self.entries = entries;
+    self.table_size = maximum_elements;
+    self.keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
+    self.values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
 
     return @sizeOf(Kivi);
 }
 
+pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
+    const maximum_elements = upper_power_of_two(config.maximum_elments);
+    const entries = try allocator.alloc(Entry, maximum_elements);
+    const keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
+    const values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
+
+    @memset(entries, Entry{ .key = null, .value = undefined });
+
+    return Kivi{ .allocator = allocator, .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
+}
+
+pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
+    const key_cursor = self.keys_mmap.cursor;
+    errdefer self.keys_mmap.cursor = key_cursor;
+
+    var index = self.key_to_possible_index(key);
+    while (index < self.table_size) {
+        const entry = self.entries[index];
+        _ = entry;
+        // std.debug.print("Set key index({any}): {any}\n", .{ index, entry.key });
+        if (self.entries[index].key == null) {
+            self.entries[index] = Entry{
+                .key = try self.keys_mmap.push(key),
+                .value = try self.values_mmap.push(value),
+            };
+
+            return value.len;
+        }
+        index += 1;
+    }
+
+    return error.NoFreeSlot;
+}
+
+pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+    var index = self.key_to_possible_index(key);
+    while (index < self.table_size) {
+        const entry = self.entries[index];
+        // std.debug.print("Get key: {any}\n", .{entry.key});
+        if (entry.key != null) {
+            if (std.mem.eql(u8, key, entry.key.?)) {
+                if (value != null) {
+                    @memcpy(value.?[0..entry.value.len], entry.value.ptr[0..entry.value.len]);
+                }
+
+                return entry.value.len;
+            }
+        } else {
+            return error.NotFound;
+        }
+
+        index += 1;
+    }
+
+    return error.NotFound;
+}
+
+pub fn del(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+    var index = self.key_to_possible_index(key);
+    while (index < self.table_size) {
+        var entry = self.entries[index];
+        // std.debug.print("Del key: {any}\n", .{entry.key});
+        if (entry.key != null) {
+            if (std.mem.eql(u8, key, entry.key.?)) {
+                if (value != null) {
+                    @memcpy(value.?[0..entry.value.len], entry.value.ptr[0..entry.value.len]);
+                }
+
+                self.entries[index].key = null;
+
+                return entry.value.len;
+            }
+        } else {
+            return error.NotFound;
+        }
+
+        index += 1;
+    }
+
+    return error.NotFound;
+}
+
 pub fn deinit(self: *Kivi) void {
-    self.map.deinit(self.allocator);
-    self.keysMmap.deinit();
-    self.valuesMmap.deinit();
-}
+    self.keys_mmap.deinit();
+    self.values_mmap.deinit();
 
-/// if val is null: returns length if pair exists, otherwise 0
-/// else: returns the bytes written if pair exists and value was successfully written, otherwise 0
-pub fn get(self: *const Kivi, key: []const u8, val: ?[]u8) usize {
-    if (val == null) {
-        if (self.map.getPtr(key)) |p| return p.len;
-        return 0;
+    self.allocator.free(self.entries);
+    if (self.gpa) {
+        var gpa_ptr: *GPA = @alignCast(@ptrCast(self.allocator.ptr));
+        var gpa = gpa_ptr.*;
+        gpa.allocator().destroy(gpa_ptr);
+        std.debug.assert(gpa.deinit() == .ok);
     }
-    const stored = self.map.get(key);
-
-    if (stored == null or val.?.len < stored.?.len) return 0;
-
-    @memcpy(val.?[0..stored.?.len], stored.?);
-
-    return stored.?.len;
-}
-
-/// Returns value length if pair was successfully stored, otherwise 0
-pub fn set(self: *Kivi, key: []const u8, val: []const u8) usize {
-    if (val.len == 0) return 0;
-
-    const key_cur = self.keysMmap.cursor;
-    const value_cur = self.valuesMmap.cursor;
-    const keys_push_res = self.keysMmap.push(key) catch return 0;
-    const values_push_res = self.valuesMmap.push(val) catch {
-        self.keysMmap.cursor = key_cur;
-        return 0;
-    };
-
-    self.map.put(self.allocator, keys_push_res, values_push_res) catch {
-        self.keysMmap.cursor = key_cur;
-        self.valuesMmap.cursor = value_cur;
-        return 0;
-    };
-
-    return val.len;
-}
-
-pub fn del(self: *Kivi, key: []const u8, val: ?[]u8) usize {
-    const stored = self.map.getPtr(key);
-    if (stored == null) return 0;
-
-    const len = stored.?.len;
-    if (val == null) {
-        self.map.removeByPtr(stored.?);
-        return len;
-    }
-
-    if (val.?.len < len) return 0;
-    @memcpy(val.?[0..len], stored.?.*);
-    self.map.removeByPtr(stored.?);
-
-    return len;
 }

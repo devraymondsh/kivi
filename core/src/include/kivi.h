@@ -2,13 +2,15 @@
 #include <stddef.h>
 
 struct __attribute__((aligned(8))) Kivi {
-  char __opaque[120];
+  char __opaque[128];
 };
 
 struct Config {
-  size_t keys_mmap_size;
-  size_t mmap_page_size;
-  size_t values_mmap_size;
+  size_t maximum_elments;
+  size_t keys_mem_size;
+  size_t keys_page_size;
+  size_t values_mem_size;
+  size_t values_page_size;
 };
 
 // TODO: Behavior documented in these comments
