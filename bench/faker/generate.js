@@ -2,7 +2,7 @@ import fs from "node:fs";
 import json from "big-json";
 import { faker } from "@faker-js/faker";
 
-const count = 4_000_000;
+const count = 2_000_000;
 
 const arr = [];
 for (let i = 0; i <= count; i++) {

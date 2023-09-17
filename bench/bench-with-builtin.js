@@ -15,6 +15,17 @@ const resolveOnEmit = (event) => {
     }
   });
 };
+const getRandomInts = (min, max) => {
+  const all = [];
+
+  for (let i = 0; i < 10; i++) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    all.push(Math.floor(Math.random() * (max - min) + min));
+  }
+
+  return all;
+};
 
 let data;
 const dataJsonPath = "faker/data/data.json";
@@ -38,71 +49,146 @@ if (!isBun()) {
 const initData = data.slice(0, data.length * 0.5);
 const runData = data.slice(data.length * 0.5, data.length);
 
-const plainJsObjectBench = () => {
+const plainJsObjectBench = (random_indexes) => {
   const o = {};
 
   initData.forEach((element) => {
     o[element.key] = element.value;
   });
 
+  let get_time = 0;
+  let set_time = 0;
+  let del_time = 0;
   const start = performance.now();
   runData.forEach((element, index) => {
-    o[data[index + 10]];
-    o[data[index + 20]];
+    const get_start = performance.now();
+    o[data[index + random_indexes[0]]];
+    o[data[index + random_indexes[1]]];
+    o[data[index + random_indexes[2]]];
+    o[data[index + random_indexes[3]]];
+    o[data[index + random_indexes[4]]];
+    o[data[index + random_indexes[5]]];
+    o[data[index + random_indexes[6]]];
+    o[data[index + random_indexes[7]]];
+    get_time += performance.now() - get_start;
+
+    const set_start = performance.now();
     o[element.key] = element.value;
-    o[data[index]] = undefined;
+    set_time += performance.now() - set_start;
+
+    const del_start = performance.now();
+    o[data[random_indexes[8]]] = undefined;
+    del_time += performance.now() - del_start;
   });
   const end = performance.now();
   const duration = end - start;
 
-  console.log("JS object\t", duration, "ms");
+  console.log("JS object get\t", get_time, "ms");
+  console.log("JS object set\t", set_time, "ms");
+  console.log("JS object del\t", del_time, "ms");
+  console.log("JS object overall\t", duration, "ms");
 
   return duration;
 };
-const jsMapBench = () => {
-  const m = new Map();
+const jsMapBench = (random_indexes) => {
+  const c = new Map();
 
   initData.forEach((element) => {
-    m.set(element.key, element.value);
+    c.set(element.key, element.value);
   });
 
+  let get_time = 0;
+  let set_time = 0;
+  let del_time = 0;
   const start = performance.now();
   runData.forEach((element, index) => {
-    m.get(data[index + 10]);
-    m.get(data[index + 20]);
-    m.set(element.key, element.value);
-    m.delete(data[index]);
+    const get_start = performance.now();
+    c.get(data[index + random_indexes[0]]);
+    c.get(data[index + random_indexes[1]]);
+    c.get(data[index + random_indexes[2]]);
+    c.get(data[index + random_indexes[3]]);
+    c.get(data[index + random_indexes[4]]);
+    c.get(data[index + random_indexes[5]]);
+    c.get(data[index + random_indexes[6]]);
+    c.get(data[index + random_indexes[7]]);
+    get_time += performance.now() - get_start;
+
+    const set_start = performance.now();
+    c.set(element.key, element.value);
+    set_time += performance.now() - set_start;
+
+    const del_start = performance.now();
+    c.delete(data[random_indexes[8]]);
+    del_time += performance.now() - del_start;
   });
   const end = performance.now();
   const duration = end - start;
 
-  console.log("JS Map\t", duration, "ms");
+  console.log("JS map get\t", get_time, "ms");
+  console.log("JS map set\t", set_time, "ms");
+  console.log("JS map del\t", del_time, "ms");
+  console.log("JS map overall\t", duration, "ms");
 
   return duration;
 };
-const kiviBench = (forceUseRuntimeFFI) => {
+const kiviBench = (forceUseRuntimeFFI, random_indexes) => {
   const c = new Kivi({ forceUseRuntimeFFI: forceUseRuntimeFFI });
 
   initData.forEach((element) => {
     c.set(element.key, element.value);
   });
 
+  let get_time = 0;
+  let set_time = 0;
+  let del_time = 0;
   const start = performance.now();
   runData.forEach((element, index) => {
-    c.get(data[index + 10]);
-    c.get(data[index + 20]);
+    const get_start = performance.now();
+    c.get(data[index + random_indexes[0]]);
+    c.get(data[index + random_indexes[1]]);
+    c.get(data[index + random_indexes[2]]);
+    c.get(data[index + random_indexes[3]]);
+    c.get(data[index + random_indexes[4]]);
+    c.get(data[index + random_indexes[5]]);
+    c.get(data[index + random_indexes[6]]);
+    c.get(data[index + random_indexes[7]]);
+    get_time += performance.now() - get_start;
+
+    const set_start = performance.now();
     c.set(element.key, element.value);
-    c.del(data[index]);
+    set_time += performance.now() - set_start;
+
+    const del_start = performance.now();
+    c.del(data[random_indexes[8]]);
+    del_time += performance.now() - del_start;
   });
   const end = performance.now();
+
+  c.destroy();
   const duration = end - start;
 
   console.log(
-    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"}\t`,
+    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} get\t`,
+    get_time,
+    "ms"
+  );
+  console.log(
+    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} set\t`,
+    set_time,
+    "ms"
+  );
+  console.log(
+    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} del\t`,
+    del_time,
+    "ms"
+  );
+  console.log(
+    `Kivi ${
+      forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"
+    } overal\t`,
     duration,
     "ms"
   );
-  c.destroy();
 
   return duration;
 };
@@ -115,12 +201,13 @@ const [jsMapResults, plainJsObjectReults, kiviNapiResults, kiviFFIResults] = [
   [],
   [],
 ];
+const random_indexes = getRandomInts(1, 200);
 for (let i = 0; i <= benchmarkRepeat; i++) {
-  jsMapResults.push(jsMapBench());
-  plainJsObjectReults.push(plainJsObjectBench());
-  kiviNapiResults.push(kiviBench(false));
+  jsMapResults.push(jsMapBench(random_indexes));
+  plainJsObjectReults.push(plainJsObjectBench(random_indexes));
+  kiviNapiResults.push(kiviBench(false, random_indexes));
   if (isNotNodeJS()) {
-    kiviFFIResults.push(kiviBench(true));
+    kiviFFIResults.push(kiviBench(true, random_indexes));
   }
   console.log(
     "------------------------------------------------------------------------"

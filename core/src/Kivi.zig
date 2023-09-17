@@ -3,11 +3,11 @@ const MMap = @import("Mmap.zig");
 const GPA = std.heap.GeneralPurposeAllocator(.{});
 
 pub const Config = extern struct {
-    maximum_elments: usize = 10_000_000,
-    keys_mem_size: usize = 2000 * 1024 * 1024,
+    maximum_elments: usize = 4_000_000,
+    keys_mem_size: usize = 500 * 1024 * 1024,
     keys_page_size: usize = 100 * 1024 * 1024,
-    values_mem_size: usize = 2000 * 1024 * 1024,
-    values_page_size: usize = 100 * 1024 * 1024,
+    values_mem_size: usize = 1000 * 1024 * 1024,
+    values_page_size: usize = 200 * 1024 * 1024,
 };
 const Entry = struct {
     key: ?[]u8,
@@ -18,7 +18,6 @@ allocator: std.mem.Allocator,
 entries: []Entry,
 gpa: bool = false,
 keys_mmap: MMap,
-table_size: usize,
 values_mmap: MMap,
 
 const Kivi = @This();
@@ -37,7 +36,7 @@ fn upper_power_of_two(n_arg: u64) u64 {
     return n;
 }
 fn key_to_possible_index(self: *const Kivi, key: []const u8) usize {
-    return std.hash.Wyhash.hash(0, key) % self.table_size;
+    return std.hash.Wyhash.hash(0, key) & (self.entries.len - 1);
 }
 
 pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
@@ -51,8 +50,8 @@ pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
     const entries = try self.allocator.alloc(Entry, maximum_elements);
     @memset(entries, Entry{ .key = null, .value = undefined });
 
+    self.gpa = true;
     self.entries = entries;
-    self.table_size = maximum_elements;
     self.keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
     self.values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
 
@@ -74,11 +73,10 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_cursor = self.keys_mmap.cursor;
     errdefer self.keys_mmap.cursor = key_cursor;
 
+    var retrying = false;
+    var rehashing = false;
     var index = self.key_to_possible_index(key);
-    while (index < self.table_size) {
-        const entry = self.entries[index];
-        _ = entry;
-        // std.debug.print("Set key index({any}): {any}\n", .{ index, entry.key });
+    while (self.entries.len > index) {
         if (self.entries[index].key == null) {
             self.entries[index] = Entry{
                 .key = try self.keys_mmap.push(key),
@@ -87,7 +85,21 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
 
             return value.len;
         }
+
         index += 1;
+        if (index >= self.entries.len) {
+            if (!rehashing) {
+                index = self.key_to_possible_index(key);
+                rehashing = true;
+            } else {
+                if (!retrying) {
+                    index = 0;
+                    retrying = true;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     return error.NoFreeSlot;
@@ -95,9 +107,8 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
 
 pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     var index = self.key_to_possible_index(key);
-    while (index < self.table_size) {
+    while (index < self.entries.len) {
         const entry = self.entries[index];
-        // std.debug.print("Get key: {any}\n", .{entry.key});
         if (entry.key != null) {
             if (std.mem.eql(u8, key, entry.key.?)) {
                 if (value != null) {
@@ -118,9 +129,8 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
 
 pub fn del(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     var index = self.key_to_possible_index(key);
-    while (index < self.table_size) {
+    while (index < self.entries.len) {
         var entry = self.entries[index];
-        // std.debug.print("Del key: {any}\n", .{entry.key});
         if (entry.key != null) {
             if (std.mem.eql(u8, key, entry.key.?)) {
                 if (value != null) {

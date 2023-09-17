@@ -5,7 +5,8 @@ const ntypes = @cImport({
     @cInclude("node_api.h");
 });
 
-const DEFAULT_BUF_SIZE: comptime_int = 4096;
+const KEYS_DEFAULT_BUF_SIZE: comptime_int = 256 * 1024;
+const VALUES_DEFAULT_BUF_SIZE: comptime_int = 2 * 1024 * 1024;
 
 fn get_args(env: ntypes.napi_env, info: ntypes.napi_callback_info, arg_count: [*c]usize, args: [*c]ntypes.napi_value) usize {
     var cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
@@ -88,13 +89,13 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, DEFAULT_BUF_SIZE);
+    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
+    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
     if (key_len == 0) {
         return new_null(env);
     }
 
-    var value_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
+    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
     var value_len: usize = arg_to_kivi(env, args[0]).?.get(key_buf[0..key_len], &value_buf) catch 0;
     if (value_len == 0) {
         return new_null(env);
@@ -108,14 +109,14 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, DEFAULT_BUF_SIZE);
+    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
+    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
     if (key_len == 0) {
         return new_unint(env, 0);
     }
 
-    var value_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
-    var value_len: usize = string_to_buffer(env, args[2], &value_buf, DEFAULT_BUF_SIZE);
+    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
+    var value_len: usize = string_to_buffer(env, args[2], &value_buf, VALUES_DEFAULT_BUF_SIZE);
 
     var kivi_result: usize = arg_to_kivi(env, args[0]).?.set(key_buf[0..key_len], value_buf[0..value_len]) catch 0;
 
@@ -127,13 +128,13 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, DEFAULT_BUF_SIZE);
+    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
+    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
     if (key_len == 0) {
         return new_null(env);
     }
 
-    var value_buf: [DEFAULT_BUF_SIZE]u8 = undefined;
+    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
     var value_len: usize = arg_to_kivi(env, args[0]).?.del(key_buf[0..key_len], &value_buf) catch 0;
     if (value_len == 0) {
         return new_null(env);
