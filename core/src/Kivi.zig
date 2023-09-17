@@ -76,7 +76,7 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     var retrying = false;
     var rehashing = false;
     var index = self.key_to_possible_index(key);
-    while (self.entries.len > index) {
+    while (true) {
         if (self.entries[index].key == null) {
             self.entries[index] = Entry{
                 .key = try self.keys_mmap.push(key),
@@ -106,8 +106,10 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
 }
 
 pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+    var retrying = false;
+    var rehashing = false;
     var index = self.key_to_possible_index(key);
-    while (index < self.entries.len) {
+    while (true) {
         const entry = self.entries[index];
         if (entry.key != null) {
             if (std.mem.eql(u8, key, entry.key.?)) {
@@ -122,14 +124,29 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
         }
 
         index += 1;
+        if (index >= self.entries.len) {
+            if (!rehashing) {
+                index = self.key_to_possible_index(key);
+                rehashing = true;
+            } else {
+                if (!retrying) {
+                    index = 0;
+                    retrying = true;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     return error.NotFound;
 }
 
 pub fn del(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+    var retrying = false;
+    var rehashing = false;
     var index = self.key_to_possible_index(key);
-    while (index < self.entries.len) {
+    while (true) {
         var entry = self.entries[index];
         if (entry.key != null) {
             if (std.mem.eql(u8, key, entry.key.?)) {
@@ -146,6 +163,19 @@ pub fn del(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
         }
 
         index += 1;
+        if (index >= self.entries.len) {
+            if (!rehashing) {
+                index = self.key_to_possible_index(key);
+                rehashing = true;
+            } else {
+                if (!retrying) {
+                    index = 0;
+                    retrying = true;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     return error.NotFound;
