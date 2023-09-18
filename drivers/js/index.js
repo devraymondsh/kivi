@@ -54,10 +54,6 @@ export class Kivi {
    * @returns {(string|null)}
    */
   get(key) {
-    if (key.length > 4096) {
-      throw new Error("Key is too long!");
-    }
-
     return this.#InnerKivi.get(key);
   }
   /**
@@ -67,13 +63,6 @@ export class Kivi {
    * @returns {void}
    */
   set(key, value) {
-    if (key.length > 4096) {
-      throw new Error("Key is too long!");
-    }
-    if (value.length > 4096) {
-      throw new Error("Value is too long!");
-    }
-
     if (!this.#InnerKivi.set(key, value)) {
       throw new Error("Failed to insert!");
     }

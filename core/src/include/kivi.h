@@ -2,7 +2,7 @@
 #include <stddef.h>
 
 struct __attribute__((aligned(8))) Kivi {
-  char __opaque[128];
+  char __opaque[120];
 };
 
 struct Config {

@@ -64,6 +64,19 @@ pub fn push(self: *Mmap, data: []const u8) ![]u8 {
     return slice;
 }
 
+pub fn reserve(self: *Mmap, size: usize) ![]u8 {
+    const starting_pos = self.cursor;
+    const ending_pos = starting_pos + size;
+
+    if (ending_pos > self.protected_mem_cursor) {
+        try self.mprotect();
+    }
+
+    self.cursor = ending_pos;
+
+    return self.mem[starting_pos..ending_pos];
+}
+
 pub fn deinit(self: *Mmap) void {
     if (!is_windows) {
         std.os.munmap(self.mem);

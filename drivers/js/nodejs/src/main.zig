@@ -5,8 +5,7 @@ const ntypes = @cImport({
     @cInclude("node_api.h");
 });
 
-const KEYS_DEFAULT_BUF_SIZE: comptime_int = 256 * 1024;
-const VALUES_DEFAULT_BUF_SIZE: comptime_int = 2 * 1024 * 1024;
+const KEYS_DEFAULT_BUF_SIZE: comptime_int = 500 * 1024;
 
 fn get_args(env: ntypes.napi_env, info: ntypes.napi_callback_info, arg_count: [*c]usize, args: [*c]ntypes.napi_value) usize {
     var cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
@@ -25,16 +24,30 @@ fn arg_to_kivi(env: ntypes.napi_env, arraybuffer: ntypes.napi_value) ?*Kivi {
     }
     return null;
 }
-fn string_to_buffer(env: ntypes.napi_env, arraybuffer: ntypes.napi_value, buf: []u8, bufsize: usize) usize {
+fn get_string_length(env: ntypes.napi_env, arraybuffer: ntypes.napi_value) usize {
     var len: usize = undefined;
-    if (symbols.napi_get_value_string_utf8(env, arraybuffer, buf.ptr, bufsize, &len) == ntypes.napi_ok) {
+    if (symbols.napi_get_value_string_utf8(env, arraybuffer, null, 0, &len) == ntypes.napi_ok) {
         return len;
     }
     return 0;
 }
-fn buffer_to_string(env: ntypes.napi_env, buf: []u8, bufsize: usize) ntypes.napi_value {
+fn stack_string_to_buffer(env: ntypes.napi_env, arraybuffer: ntypes.napi_value, buf: []u8) usize {
+    var len: usize = undefined;
+    if (symbols.napi_get_value_string_utf8(env, arraybuffer, buf.ptr, buf.len, &len) == ntypes.napi_ok) {
+        return len;
+    }
+    return 0;
+}
+fn string_to_buffer(env: ntypes.napi_env, arraybuffer: ntypes.napi_value, buf: []u8) usize {
+    var len: usize = undefined;
+    if (symbols.napi_get_value_string_utf8(env, arraybuffer, buf.ptr, buf.len + 1, &len) == ntypes.napi_ok) {
+        return len + 1;
+    }
+    return 0;
+}
+fn buffer_to_string(env: ntypes.napi_env, buf: []u8) ntypes.napi_value {
     var string: ntypes.napi_value = undefined;
-    if (symbols.napi_create_string_utf8(env, buf.ptr, bufsize, &string) == ntypes.napi_ok) {
+    if (symbols.napi_create_string_utf8(env, buf.ptr, buf.len, &string) == ntypes.napi_ok) {
         return string;
     }
     return null;
@@ -59,6 +72,28 @@ fn new_undefined(env: ntypes.napi_env) ntypes.napi_value {
         return undefined_value;
     }
     return null;
+}
+fn allocate_temp_key(self: *Kivi, env: ntypes.napi_env, napi_buffer: ntypes.napi_value, should_be_freed: *bool) ![]u8 {
+    var temp_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
+    var length = get_string_length(env, napi_buffer);
+
+    if (length > KEYS_DEFAULT_BUF_SIZE) {
+        var key_buf = self.allocator.alloc(u8, length) catch return error.Failed;
+        should_be_freed.* = true;
+
+        const written_len = string_to_buffer(env, napi_buffer, key_buf);
+        if (written_len == 0) {
+            return error.Failed;
+        }
+
+        return key_buf;
+    } else if (length == 0) {
+        return error.Failed;
+    }
+
+    _ = string_to_buffer(env, napi_buffer, &temp_buf);
+
+    return temp_buf[0..length];
 }
 
 pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
@@ -89,19 +124,22 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
-    if (key_len == 0) {
+    var self = arg_to_kivi(env, args[0]).?;
+
+    var should_be_freed = false;
+    const key = allocate_temp_key(self, env, args[1], &should_be_freed) catch return new_null(env);
+    defer {
+        if (should_be_freed) {
+            self.allocator.free(key);
+        }
+    }
+
+    var value = self.get_slice(key) catch return new_null(env);
+    if (value.len == 0) {
         return new_null(env);
     }
 
-    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
-    var value_len: usize = arg_to_kivi(env, args[0]).?.get(key_buf[0..key_len], &value_buf) catch 0;
-    if (value_len == 0) {
-        return new_null(env);
-    }
-
-    return buffer_to_string(env, &value_buf, value_len);
+    return buffer_to_string(env, value);
 }
 pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 3;
@@ -109,18 +147,32 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
+    var self = arg_to_kivi(env, args[0]).?;
+
+    var key_len: usize = get_string_length(env, args[1]);
     if (key_len == 0) {
         return new_unint(env, 0);
     }
+    var key_buf = self.reserve_key(key_len) catch return new_unint(env, 0);
+    const written_key_len = string_to_buffer(env, args[1], key_buf);
+    if (written_key_len == 0) {
+        return new_unint(env, 0);
+    }
 
-    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
-    var value_len: usize = string_to_buffer(env, args[2], &value_buf, VALUES_DEFAULT_BUF_SIZE);
+    var value_len: usize = get_string_length(env, args[2]);
+    if (value_len == 0) {
+        return new_unint(env, 0);
+    }
+    var value_buf = self.reserve(key_buf, value_len) catch {
+        self.undo_key_reserve(key_buf);
+        return new_unint(env, 0);
+    };
+    const written_value_len = string_to_buffer(env, args[2], value_buf);
+    if (written_value_len == 0) {
+        return new_unint(env, 0);
+    }
 
-    var kivi_result: usize = arg_to_kivi(env, args[0]).?.set(key_buf[0..key_len], value_buf[0..value_len]) catch 0;
-
-    return new_unint(env, @intCast(kivi_result));
+    return new_unint(env, @intCast(value_len));
 }
 pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
@@ -128,19 +180,22 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var key_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
-    var key_len: usize = string_to_buffer(env, args[1], &key_buf, KEYS_DEFAULT_BUF_SIZE);
-    if (key_len == 0) {
+    var self = arg_to_kivi(env, args[0]).?;
+
+    var should_be_freed = false;
+    const key = allocate_temp_key(self, env, args[1], &should_be_freed) catch return new_null(env);
+    defer {
+        if (should_be_freed) {
+            self.allocator.free(key);
+        }
+    }
+
+    var value = self.del_slice(key) catch return new_null(env);
+    if (value.len == 0) {
         return new_null(env);
     }
 
-    var value_buf: [VALUES_DEFAULT_BUF_SIZE]u8 = undefined;
-    var value_len: usize = arg_to_kivi(env, args[0]).?.del(key_buf[0..key_len], &value_buf) catch 0;
-    if (value_len == 0) {
-        return new_null(env);
-    }
-
-    return buffer_to_string(env, &value_buf, value_len);
+    return buffer_to_string(env, value);
 }
 
 pub export fn node_api_module_get_api_version_v1() i32 {

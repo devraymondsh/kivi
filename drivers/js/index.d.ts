@@ -1,5 +1,5 @@
 interface KiviConfig {
-    forceUseRuntimeFFI: ?boolean,
+    forceUseRuntimeFFI: boolean | undefined,
 }
 
 export class Kivi {

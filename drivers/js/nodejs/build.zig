@@ -31,8 +31,6 @@ fn formatTarget(target: std.Target, allocator: std.mem.Allocator, suffix: []cons
 }
 
 pub fn build(b: *std.build.Builder) !void {
-    const x = b.addModule("core-build", .{ .source_file = std.Build.LazyPath.relative("../../../core/build.zig") });
-
     const target = b.standardTargetOptions(.{});
     optimize = b.standardOptimizeOption(.{});
     const target_info = try std.zig.system.NativeTargetInfo.detect(target);
@@ -43,12 +41,9 @@ pub fn build(b: *std.build.Builder) !void {
     });
     const shared = b.addSharedLibrary(.{ .name = "kivi-node-addon", .root_source_file = std.Build.LazyPath.relative("src/main.zig"), .target = target, .optimize = optimize });
     shared.force_pic = true;
-    shared.bundle_compiler_rt = true;
     shared.linker_allow_shlib_undefined = true;
     shared.addModule("Kivi", kivi_mod);
     shared.addIncludePath(std.build.LazyPath.relative("src/napi-headers"));
-
-    shared.addModule("core-build", x);
 
     if (optimize == .ReleaseFast) {
         shared.strip = true;

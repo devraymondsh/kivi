@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const c = @cImport({
+pub const c = @cImport({
     @cInclude("node_api.h");
 });
 

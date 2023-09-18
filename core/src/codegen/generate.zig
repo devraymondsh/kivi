@@ -41,7 +41,6 @@ fn generate_C_headers(comptime Type: type, writer: anytype) !void {
             \\
             \\
         , .{ @alignOf(Type), @sizeOf(Type) });
-        // std.debug.panic("Thing: {any}", .{.{ Type, @alignOf(Type), @sizeOf(Type) }});
     }
     inline for (@typeInfo(Type).Struct.decls) |decl| {
         if (std.mem.startsWith(u8, decl.name, "kivi_") or std.mem.eql(u8, decl.name, "setup_debug_handlers") or std.mem.eql(u8, decl.name, "dump_stack_trace") or std.mem.eql(u8, decl.name, "Config")) {
