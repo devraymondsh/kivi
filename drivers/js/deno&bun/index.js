@@ -24,7 +24,7 @@ if (isBun()) {
 }
 
 export class DenoAndBunKivi {
-  #array_buf = new ArrayBuffer(120);
+  #array_buf = new ArrayBuffer(160);
   #buf = utils.makeBufferPtr(this.#array_buf);
 
   #key_scratch = new Uint8Array(4096);

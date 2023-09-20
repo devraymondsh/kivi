@@ -56,6 +56,7 @@ pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
 
     self.gpa = true;
     self.entries = entries;
+    self.freelist = std.ArrayList([]u8).init(self.allocator);
     self.keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
     self.values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
 
@@ -70,7 +71,7 @@ pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
 
     @memset(entries, Entry{ .key = null, .value = undefined });
 
-    return Kivi{ .allocator = allocator, .freelist = std.ArrayList([]u8), .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
+    return Kivi{ .allocator = allocator, .freelist = std.ArrayList([]u8).init(allocator), .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
 }
 
 pub fn undo_key_reserve(self: *Kivi, slice: []u8) void {
