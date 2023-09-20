@@ -16,6 +16,7 @@ const Entry = struct {
 
 allocator: std.mem.Allocator,
 entries: []Entry,
+freelist: std.ArrayList([]u8),
 gpa: bool = false,
 keys_mmap: MMap,
 values_mmap: MMap,
@@ -69,7 +70,7 @@ pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
 
     @memset(entries, Entry{ .key = null, .value = undefined });
 
-    return Kivi{ .allocator = allocator, .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
+    return Kivi{ .allocator = allocator, .freelist = std.ArrayList([]u8), .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
 }
 
 pub fn undo_key_reserve(self: *Kivi, slice: []u8) void {
