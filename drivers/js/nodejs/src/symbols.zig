@@ -1,8 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-pub const c = @cImport({
-    @cInclude("node_api.h");
-});
+pub const c = @import("napi-bindings.zig");
 
 pub var napi_create_string_utf8: *const @TypeOf(c.napi_create_string_utf8) = undefined;
 pub var napi_create_uint32: *const @TypeOf(c.napi_create_uint32) = undefined;

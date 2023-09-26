@@ -1,5 +1,7 @@
 import fs from "node:fs";
 import json from "big-json";
+import path from "path";
+import { fileURLToPath } from "url";
 import { Kivi } from "../drivers/js/index.js";
 import { isNotNodeJS, isBun } from "../drivers/js/runtime.js";
 
@@ -28,12 +30,15 @@ const getRandomInts = (min, max) => {
 };
 
 let data;
-const dataJsonPath = "faker/data/data.json";
+const dataJsonPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "faker/data/data.json"
+);
 console.log("Loading the data. Please be patient.");
 if (!isBun()) {
   if (!fs.existsSync(dataJsonPath)) {
     throw new Error(
-      "Failed to read the `data/data.json` file. Follow the instructions found in `data/readme.md` to generate it."
+      "Failed to read the `bench/faker/data/data.json` file. Follow the instructions found in `bench/faker/data/readme.md` to generate it."
     );
   }
   const readStream = fs.createReadStream(dataJsonPath);
@@ -49,52 +54,19 @@ if (!isBun()) {
 const initData = data.slice(0, data.length * 0.5);
 const runData = data.slice(data.length * 0.5, data.length);
 
-const plainJsObjectBench = (random_indexes) => {
-  const o = {};
-
-  initData.forEach((element) => {
-    o[element.key] = element.value;
-  });
-
-  let get_time = 0;
-  let set_time = 0;
-  let del_time = 0;
-  const start = performance.now();
-  runData.forEach((element, index) => {
-    const get_start = performance.now();
-    o[data[index + random_indexes[0]]];
-    o[data[index + random_indexes[1]]];
-    o[data[index + random_indexes[2]]];
-    o[data[index + random_indexes[3]]];
-    o[data[index + random_indexes[4]]];
-    o[data[index + random_indexes[5]]];
-    o[data[index + random_indexes[6]]];
-    o[data[index + random_indexes[7]]];
-    get_time += performance.now() - get_start;
-
-    const set_start = performance.now();
-    o[element.key] = element.value;
-    set_time += performance.now() - set_start;
-
-    const del_start = performance.now();
-    o[data[random_indexes[8]]] = undefined;
-    del_time += performance.now() - del_start;
-  });
-  const end = performance.now();
-  const duration = end - start;
-
-  console.log("JS object get\t", get_time, "ms");
-  console.log("JS object set\t", set_time, "ms");
-  console.log("JS object del\t", del_time, "ms");
-  console.log("JS object overall\t", duration, "ms");
-
-  return duration;
+const assert = (name, left, right) => {
+  if (left !== right) {
+    throw new Error(
+      `Assertion '${name}' failed! Left was '${left}' and right was '${right}'.`
+    );
+  }
 };
-const jsMapBench = (random_indexes) => {
-  const c = new Map();
+
+const bench = (random_indexes, obj) => {
+  const o = obj.init();
 
   initData.forEach((element) => {
-    c.set(element.key, element.value);
+    obj.set(o, element.key, element.value);
   });
 
   let get_time = 0;
@@ -102,113 +74,98 @@ const jsMapBench = (random_indexes) => {
   let del_time = 0;
   const start = performance.now();
   runData.forEach((element, index) => {
-    const get_start = performance.now();
-    c.get(data[index + random_indexes[0]]);
-    c.get(data[index + random_indexes[1]]);
-    c.get(data[index + random_indexes[2]]);
-    c.get(data[index + random_indexes[3]]);
-    c.get(data[index + random_indexes[4]]);
-    c.get(data[index + random_indexes[5]]);
-    c.get(data[index + random_indexes[6]]);
-    c.get(data[index + random_indexes[7]]);
-    get_time += performance.now() - get_start;
-
     const set_start = performance.now();
-    c.set(element.key, element.value);
+    obj.set(o, element.key, element.value);
+    assert(`${obj.name} set`, obj.get(o, element.key), element.value);
     set_time += performance.now() - set_start;
 
+    const get_start = performance.now();
+    for (let i = 0; i < 7; i++) {
+      const value = obj.get(o, data[index + random_indexes[i]].key);
+      // The value may have been deleted by the previous obj.del
+      if (value) {
+        assert(`${obj.name} get`, value, data[index + random_indexes[i]].value);
+      }
+    }
+    get_time += performance.now() - get_start;
+
     const del_start = performance.now();
-    c.delete(data[random_indexes[8]]);
+    assert(`${obj.name} del`, obj.del(o, element.key), element.value);
     del_time += performance.now() - del_start;
   });
   const end = performance.now();
   const duration = end - start;
 
-  console.log("JS map get\t", get_time, "ms");
-  console.log("JS map set\t", set_time, "ms");
-  console.log("JS map del\t", del_time, "ms");
-  console.log("JS map overall\t", duration, "ms");
+  console.log(`${obj.name} get\t`, get_time, "ms");
+  console.log(`${obj.name} set\t`, set_time, "ms");
+  console.log(`${obj.name} del\t`, del_time, "ms");
+  console.log(`${obj.name} overall\t`, duration, "ms");
 
-  return duration;
-};
-const kiviBench = (forceUseRuntimeFFI, random_indexes) => {
-  const c = new Kivi({ forceUseRuntimeFFI: forceUseRuntimeFFI });
-
-  initData.forEach((element) => {
-    c.set(element.key, element.value);
-  });
-
-  let get_time = 0;
-  let set_time = 0;
-  let del_time = 0;
-  const start = performance.now();
-  runData.forEach((element, index) => {
-    const get_start = performance.now();
-    c.get(data[index + random_indexes[0]]);
-    c.get(data[index + random_indexes[1]]);
-    c.get(data[index + random_indexes[2]]);
-    c.get(data[index + random_indexes[3]]);
-    c.get(data[index + random_indexes[4]]);
-    c.get(data[index + random_indexes[5]]);
-    c.get(data[index + random_indexes[6]]);
-    c.get(data[index + random_indexes[7]]);
-    get_time += performance.now() - get_start;
-
-    const set_start = performance.now();
-    c.set(element.key, element.value);
-    set_time += performance.now() - set_start;
-
-    const del_start = performance.now();
-    c.del(data[random_indexes[8]]);
-    del_time += performance.now() - del_start;
-  });
-  const end = performance.now();
-
-  c.destroy();
-  const duration = end - start;
-
-  console.log(
-    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} get\t`,
-    get_time,
-    "ms"
-  );
-  console.log(
-    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} set\t`,
-    set_time,
-    "ms"
-  );
-  console.log(
-    `Kivi ${forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"} del\t`,
-    del_time,
-    "ms"
-  );
-  console.log(
-    `Kivi ${
-      forceUseRuntimeFFI ? "using runtime's FFI" : "using Napi"
-    } overal\t`,
-    duration,
-    "ms"
-  );
+  obj.destroy(o);
 
   return duration;
 };
 
 console.log(`Running the benchmark ${benchmarkRepeat} times.`);
-
 const [jsMapResults, plainJsObjectReults, kiviNapiResults, kiviFFIResults] = [
   [],
   [],
   [],
   [],
 ];
-const random_indexes = getRandomInts(1, 200);
+const random_indexes = getRandomInts(1, 20);
 for (let i = 0; i <= benchmarkRepeat; i++) {
-  jsMapResults.push(jsMapBench(random_indexes));
-  plainJsObjectReults.push(plainJsObjectBench(random_indexes));
-  kiviNapiResults.push(kiviBench(false, random_indexes));
+  jsMapResults.push(
+    bench(random_indexes, {
+      name: "JsMap",
+      init: () => new Map(),
+      get: (o, k) => o.get(k),
+      destroy: (o) => o.clear(),
+      del: (o, k) => {
+        const v = o.get(k);
+        o.delete(k);
+        return v;
+      },
+      set: (o, k, v) => o.set(k, v),
+    })
+  );
+  plainJsObjectReults.push(
+    bench(random_indexes, {
+      name: "JsObject",
+      init: () => {
+        return {};
+      },
+      destroy: (o) => {},
+      get: (o, k) => o[k],
+      del: (o, k) => {
+        const v = o[k];
+        o[k] = undefined;
+        return v;
+      },
+      set: (o, k, v) => {
+        o[k] = v;
+      },
+    })
+  );
+
+  const kiviObj = {
+    name: "Kivi with Napi",
+    init: () => new Kivi(),
+    get: (o, k) => o.get(k),
+    del: (o, k) => o.del(k),
+    destroy: (o) => o.destroy(),
+    set: (o, k, v) => o.set(k, v),
+  };
+  kiviNapiResults.push(bench(random_indexes, kiviObj));
   if (isNotNodeJS()) {
-    kiviFFIResults.push(kiviBench(true, random_indexes));
+    kiviFFIResults.push(
+      bench(random_indexes, {
+        ...kiviObj,
+        name: "Kivi without Napi",
+      })
+    );
   }
+
   console.log(
     "------------------------------------------------------------------------"
   );

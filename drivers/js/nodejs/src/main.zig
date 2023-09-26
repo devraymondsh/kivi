@@ -1,9 +1,7 @@
 const std = @import("std");
 const Kivi = @import("Kivi");
 const symbols = @import("symbols.zig");
-const ntypes = @cImport({
-    @cInclude("node_api.h");
-});
+const ntypes = @import("napi-bindings.zig");
 
 const KEYS_DEFAULT_BUF_SIZE: comptime_int = 500 * 1024;
 
@@ -194,8 +192,11 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     if (value.len == 0) {
         return new_null(env);
     }
+    const string = buffer_to_string(env, value);
 
-    return buffer_to_string(env, value);
+    self.del_value(value);
+
+    return string;
 }
 
 pub export fn node_api_module_get_api_version_v1() i32 {

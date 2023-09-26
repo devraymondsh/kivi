@@ -36,10 +36,10 @@ fn upper_power_of_two(n_arg: u64) u64 {
 
     return n;
 }
-fn key_to_possible_index(self: *const Kivi, key: []const u8) usize {
+inline fn key_to_possible_index(self: *const Kivi, key: []const u8) usize {
     return std.hash.Wyhash.hash(0, key) & (self.entries.len - 1);
 }
-fn stringcpy(dest: []u8, src: []const u8) void {
+inline fn stringcpy(dest: []u8, src: []const u8) void {
     @memcpy(dest.ptr[0..src.len], src.ptr[0..src.len]);
 }
 
@@ -133,8 +133,8 @@ pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
     var rehashing = false;
     var index = self.key_to_possible_index(key);
     while (true) {
-        if (self.entries[index].key != null) {
-            if (std.mem.eql(u8, key, self.entries[index].key.?)) {
+        if (self.entries[index].key) |indexed_key| {
+            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
                 return self.entries[index].value;
             }
         }
@@ -167,13 +167,15 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     return value_slice.len;
 }
 
-pub fn del_slice(self: *const Kivi, key: []const u8) ![]u8 {
+pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
     var retrying = false;
     var rehashing = false;
     var index = self.key_to_possible_index(key);
     while (true) {
-        if (self.entries[index].key != null) {
-            if (std.mem.eql(u8, key, self.entries[index].key.?)) {
+        if (self.entries[index].key) |indexed_key| {
+            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
+                self.keys_mmap.free(indexed_key);
+
                 self.entries[index].key = null;
 
                 return self.entries[index].value;
@@ -198,14 +200,20 @@ pub fn del_slice(self: *const Kivi, key: []const u8) ![]u8 {
 
     return error.NotFound;
 }
-pub fn del(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+pub fn del_value(self: *Kivi, value: []u8) void {
+    self.values_mmap.free(value);
+}
+pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice = try self.del_slice(key);
+    const value_slice_len = value_slice.len;
 
     if (value != null) {
         stringcpy(value.?, value_slice);
     }
 
-    return value_slice.len;
+    self.del_value(value_slice);
+
+    return value_slice_len;
 }
 
 pub fn deinit(self: *Kivi) void {

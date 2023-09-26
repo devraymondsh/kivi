@@ -21,6 +21,18 @@ const run = (config) => {
 
   assert("Value-after-delete", c.get("foo"), null);
 
+  // Do it again to assert the freelist
+
+  assert("Null-if-uninitialized", c.get("foo"), null);
+
+  c.set("foo", "bar");
+
+  assert("Assert-after-set", c.get("foo"), "bar");
+
+  assert("Value-when-delete", c.del("foo"), "bar");
+
+  assert("Value-after-delete", c.get("foo"), null);
+
   c.destroy();
 };
 

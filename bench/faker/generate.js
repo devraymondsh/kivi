@@ -7,7 +7,7 @@ const count = 2_000_000;
 const arr = [];
 for (let i = 0; i <= count; i++) {
   arr.push({
-    key: faker.word.words({ min: 10 }).split(" ").join("_"),
+    key: faker.string.uuid(),
     value: JSON.stringify({
       bio: faker.person.bio(),
       gender: faker.person.gender(),
