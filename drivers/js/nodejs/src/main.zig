@@ -4,6 +4,8 @@ const symbols = @import("symbols.zig");
 const ntypes = @import("napi-bindings.zig");
 
 const KEYS_DEFAULT_BUF_SIZE: comptime_int = 500 * 1024;
+var GPA = std.heap.GeneralPurposeAllocator(.{}){};
+var allocator = GPA.allocator();
 
 fn get_args(env: ntypes.napi_env, info: ntypes.napi_callback_info, arg_count: [*c]usize, args: [*c]ntypes.napi_value) usize {
     var cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
@@ -71,12 +73,12 @@ fn new_undefined(env: ntypes.napi_env) ntypes.napi_value {
     }
     return null;
 }
-fn allocate_temp_key(self: *Kivi, env: ntypes.napi_env, napi_buffer: ntypes.napi_value, should_be_freed: *bool) ![]u8 {
+inline fn allocate_temp_key(env: ntypes.napi_env, napi_buffer: ntypes.napi_value, should_be_freed: *bool) ![]u8 {
     var temp_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
     var length = get_string_length(env, napi_buffer);
 
     if (length > KEYS_DEFAULT_BUF_SIZE) {
-        var key_buf = self.allocator.alloc(u8, length) catch return error.Failed;
+        var key_buf = allocator.alloc(u8, length) catch return error.Failed;
         should_be_freed.* = true;
 
         const written_len = string_to_buffer(env, napi_buffer, key_buf);
@@ -125,10 +127,10 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var self = arg_to_kivi(env, args[0]).?;
 
     var should_be_freed = false;
-    const key = allocate_temp_key(self, env, args[1], &should_be_freed) catch return new_null(env);
+    const key = allocate_temp_key(env, args[1], &should_be_freed) catch return new_null(env);
     defer {
         if (should_be_freed) {
-            self.allocator.free(key);
+            allocator.free(key);
         }
     }
 
@@ -162,7 +164,7 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return new_unint(env, 0);
     }
     var value_buf = self.reserve(key_buf, value_len) catch {
-        self.undo_key_reserve(key_buf);
+        self.undo_reserve(key_buf);
         return new_unint(env, 0);
     };
     const written_value_len = string_to_buffer(env, args[2], value_buf);
@@ -181,10 +183,10 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     var self = arg_to_kivi(env, args[0]).?;
 
     var should_be_freed = false;
-    const key = allocate_temp_key(self, env, args[1], &should_be_freed) catch return new_null(env);
+    const key = allocate_temp_key(env, args[1], &should_be_freed) catch return new_null(env);
     defer {
         if (should_be_freed) {
-            self.allocator.free(key);
+            allocator.free(key);
         }
     }
 

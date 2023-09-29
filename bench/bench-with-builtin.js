@@ -88,6 +88,7 @@ const bench = (random_indexes, obj) => {
       }
     }
     get_time += performance.now() - get_start;
+    // console.log("Get timing: " + (performance.now() -get_start));
 
     const del_start = performance.now();
     assert(`${obj.name} del`, obj.del(o, element.key), element.value);

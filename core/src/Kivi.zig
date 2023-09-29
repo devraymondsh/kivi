@@ -1,25 +1,18 @@
 const std = @import("std");
 const MMap = @import("Mmap.zig");
-const GPA = std.heap.GeneralPurposeAllocator(.{});
 
 pub const Config = extern struct {
-    maximum_elments: usize = 4_000_000,
-    keys_mem_size: usize = 500 * 1024 * 1024,
-    keys_page_size: usize = 100 * 1024 * 1024,
-    values_mem_size: usize = 1000 * 1024 * 1024,
-    values_page_size: usize = 200 * 1024 * 1024,
+    maximum_elments: usize = 3_125_000,
+    mem_size: usize = 1000 * 1024 * 1024,
+    mempage_size: usize = 200 * 1024 * 1024,
 };
 const Entry = struct {
     key: ?[]u8,
     value: []u8,
 };
 
-allocator: std.mem.Allocator,
+mem: MMap,
 entries: []Entry,
-freelist: std.ArrayList([]u8),
-gpa: bool = false,
-keys_mmap: MMap,
-values_mmap: MMap,
 
 const Kivi = @This();
 
@@ -44,52 +37,46 @@ inline fn stringcpy(dest: []u8, src: []const u8) void {
 }
 
 pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
-    var gpa = GPA{};
-    const heap_gpa = try gpa.allocator().create(GPA);
-    heap_gpa.* = gpa;
-
     const maximum_elements = upper_power_of_two(config.maximum_elments);
+    self.mem = try MMap.init(config.mem_size, config.mempage_size);
 
-    self.allocator = heap_gpa.allocator();
-    const entries = try self.allocator.alloc(Entry, maximum_elements);
-    @memset(entries, Entry{ .key = null, .value = undefined });
-
-    self.gpa = true;
-    self.entries = entries;
-    self.freelist = std.ArrayList([]u8).init(self.allocator);
-    self.keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
-    self.values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
+    var reserved_entries = try self.mem.reserve(maximum_elements * @sizeOf(Entry));
+    self.entries.ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr)));
+    self.entries.len = maximum_elements;
+    @memset(self.entries, Entry{ .key = null, .value = undefined });
 
     return @sizeOf(Kivi);
 }
 
-pub fn init(allocator: std.mem.Allocator, config: *const Config) !Kivi {
+pub fn init(config: *const Config) !Kivi {
     const maximum_elements = upper_power_of_two(config.maximum_elments);
-    const entries = try allocator.alloc(Entry, maximum_elements);
-    const keys_mmap = try MMap.init(config.keys_mem_size, config.keys_page_size);
-    const values_mmap = try MMap.init(config.values_mem_size, config.values_page_size);
+    const mem = try MMap.init(config.mem_size, config.mempage_size);
 
+    var reserved_entries = try mem.reserve(maximum_elements * @sizeOf(Entry));
+    var entries: []Entry = .{
+        .ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr))),
+        .len = maximum_elements,
+    };
     @memset(entries, Entry{ .key = null, .value = undefined });
 
-    return Kivi{ .allocator = allocator, .freelist = std.ArrayList([]u8).init(allocator), .entries = entries, .table_size = maximum_elements, .keys_mmap = keys_mmap, .values_mmap = values_mmap };
+    return Kivi{ .entries = entries, .table_size = maximum_elements, .mem = mem };
 }
 
-pub fn undo_key_reserve(self: *Kivi, slice: []u8) void {
-    self.keys_mmap.cursor -= slice.len;
+pub fn undo_reserve(self: *Kivi, slice: []u8) void {
+    self.mem.cursor -= slice.len;
 }
 pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
-    const key_cursor = self.keys_mmap.cursor;
-    errdefer self.keys_mmap.cursor = key_cursor;
+    const key_cursor = self.mem.cursor;
+    errdefer self.mem.cursor = key_cursor;
 
-    return try self.keys_mmap.reserve(size);
+    return try self.mem.reserve(size);
 }
 pub fn reserve(self: *Kivi, key_slice: []u8, size: usize) ![]u8 {
     var retrying = false;
-    var rehashing = false;
     var index = self.key_to_possible_index(key_slice);
     while (true) {
         if (self.entries[index].key == null) {
-            const value_slice = try self.values_mmap.reserve(size);
+            const value_slice = try self.mem.reserve(size);
             self.entries[index] = Entry{
                 .key = key_slice,
                 .value = value_slice,
@@ -100,16 +87,11 @@ pub fn reserve(self: *Kivi, key_slice: []u8, size: usize) ![]u8 {
 
         index += 1;
         if (index >= self.entries.len) {
-            if (!rehashing) {
-                index = self.key_to_possible_index(key_slice);
-                rehashing = true;
+            if (!retrying) {
+                index = 0;
+                retrying = true;
             } else {
-                if (!retrying) {
-                    index = 0;
-                    retrying = true;
-                } else {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -118,7 +100,7 @@ pub fn reserve(self: *Kivi, key_slice: []u8, size: usize) ![]u8 {
 }
 pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_slice = try self.reserve_key(key.len);
-    errdefer self.undo_key_reserve(key_slice);
+    errdefer self.undo_reserve(key_slice);
 
     const value_slice = try self.reserve(key_slice, value.len);
 
@@ -130,7 +112,6 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
 
 pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
     var retrying = false;
-    var rehashing = false;
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
@@ -141,16 +122,11 @@ pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
 
         index += 1;
         if (index >= self.entries.len) {
-            if (!rehashing) {
-                index = self.key_to_possible_index(key);
-                rehashing = true;
+            if (!retrying) {
+                index = 0;
+                retrying = true;
             } else {
-                if (!retrying) {
-                    index = 0;
-                    retrying = true;
-                } else {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -169,12 +145,11 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
 
 pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
     var retrying = false;
-    var rehashing = false;
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
             if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
-                self.keys_mmap.free(indexed_key);
+                self.mem.free(indexed_key);
 
                 self.entries[index].key = null;
 
@@ -184,16 +159,11 @@ pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
 
         index += 1;
         if (index >= self.entries.len) {
-            if (!rehashing) {
-                index = self.key_to_possible_index(key);
-                rehashing = true;
+            if (!retrying) {
+                index = 0;
+                retrying = true;
             } else {
-                if (!retrying) {
-                    index = 0;
-                    retrying = true;
-                } else {
-                    break;
-                }
+                break;
             }
         }
     }
@@ -201,7 +171,7 @@ pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
     return error.NotFound;
 }
 pub fn del_value(self: *Kivi, value: []u8) void {
-    self.values_mmap.free(value);
+    self.mem.free(value);
 }
 pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice = try self.del_slice(key);
@@ -217,14 +187,5 @@ pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
 }
 
 pub fn deinit(self: *Kivi) void {
-    self.keys_mmap.deinit();
-    self.values_mmap.deinit();
-
-    self.allocator.free(self.entries);
-    if (self.gpa) {
-        var gpa_ptr: *GPA = @alignCast(@ptrCast(self.allocator.ptr));
-        var gpa = gpa_ptr.*;
-        gpa.allocator().destroy(gpa_ptr);
-        std.debug.assert(gpa.deinit() == .ok);
-    }
+    self.mem.deinit();
 }
