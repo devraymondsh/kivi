@@ -4,7 +4,6 @@ const builtin = @import("builtin");
 const maxU32 = std.math.maxInt(u32);
 const maxU64 = std.math.maxInt(u64);
 const is_windows: bool = builtin.os.tag == .windows;
-var empty_freelist = FreeListNode8byte{ .len = 0, .next = false, .next_idx = maxU32 };
 
 const FreeListNode8byte = packed struct {
     len: u31,
@@ -19,7 +18,7 @@ const FreeListNode16byte = packed struct {
 };
 
 cursor: usize,
-freelist: *FreeListNode8byte,
+freelist: ?*FreeListNode8byte,
 mem: []align(std.mem.page_size) u8,
 page_size: usize,
 protected_mem_cursor: usize,
@@ -57,30 +56,30 @@ pub fn init(total_size: usize, page_size: usize) !Mmap {
         mem.ptr = @alignCast(@ptrCast(lpvoid));
     }
 
-    var mmap = Mmap{ .mem = mem, .cursor = 0, .protected_mem_cursor = 0, .freelist = &empty_freelist, .page_size = std.mem.alignForward(usize, page_size, std.mem.page_size) };
+    var mmap = Mmap{ .mem = mem, .cursor = 0, .protected_mem_cursor = 0, .freelist = null, .page_size = std.mem.alignForward(usize, page_size, std.mem.page_size) };
     mmap.mprotect() catch unreachable;
 
     return mmap;
 }
 
-pub fn reserve(self: *Mmap, size: usize) ![]u8 {
-    if (self.freelist.len != 0) {
-        if (self.freelist.len >= size) {
+fn reserve_inner(self: *Mmap, size: usize) ![2][]u8 {
+    if (self.freelist) |freelist| {
+        if (freelist.len >= size) {
             var freelist_slice: []u8 = undefined;
-            freelist_slice.len = self.freelist.len;
+            freelist_slice.len = freelist.len;
             freelist_slice.ptr = @alignCast(@ptrCast(self.freelist));
 
-            if (self.freelist.len - size != 0) {
-                @memset(freelist_slice[size..self.freelist.len], 0);
+            if (freelist.len - size != 0) {
+                @memset(freelist_slice[size..freelist.len], 0);
             }
 
-            if (self.freelist.next) {
-                self.freelist = @ptrFromInt(@as(usize, @intCast(self.freelist.next_idx)) + @intFromPtr(self.mem.ptr));
+            if (freelist.next) {
+                self.freelist = @ptrFromInt(@as(usize, @intCast(freelist.next_idx)) + @intFromPtr(self.mem.ptr));
             } else {
-                self.freelist = &empty_freelist;
+                self.freelist = null;
             }
 
-            return freelist_slice[0..size];
+            return .{ freelist_slice[0..freelist.len], freelist_slice[0..size] };
         }
     }
 
@@ -99,7 +98,15 @@ pub fn reserve(self: *Mmap, size: usize) ![]u8 {
 
     self.cursor = ending_pos;
 
-    return self.mem[starting_pos .. starting_pos + size];
+    return .{ self.mem[starting_pos..ending_pos], self.mem[starting_pos .. starting_pos + size] };
+}
+pub fn reserve(self: *Mmap, size: usize) ![]u8 {
+    const positions = try self.reserve_inner(size);
+    return positions[1];
+}
+pub fn aligned_reserve(self: *Mmap, size: usize) ![]u8 {
+    const positions = try self.reserve_inner(size);
+    return positions[0];
 }
 
 pub fn free(self: *Mmap, data: []u8) void {
@@ -111,7 +118,7 @@ pub fn free(self: *Mmap, data: []u8) void {
         freelist.*.len = 8;
     }
 
-    if (self.freelist.len != 0) {
+    if (self.freelist) |_| {
         freelist.*.next = true;
         freelist.*.next_idx = @intCast(@intFromPtr(self.freelist) - @intFromPtr(self.mem.ptr));
     } else {
