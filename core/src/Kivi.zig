@@ -62,25 +62,6 @@ pub fn init(config: *const Config) !Kivi {
     return Kivi{ .entries = entries, .table_size = maximum_elements, .mem = mem };
 }
 
-pub fn comp(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) {
-        return false;
-    }
-
-    var i: usize = 0;
-    while (a.len > i) {
-        var vec_a: @Vector(8, u8) = a.ptr[i..][0..8].*;
-        var vec_b: @Vector(8, u8) = b.ptr[i..][0..8].*;
-        if (!@reduce(.And, vec_a == vec_b)) {
-            return false;
-        }
-
-        i += 8;
-    }
-
-    return true;
-}
-
 pub fn undo_reserve(self: *Kivi, slice: []u8) void {
     self.mem.cursor -= slice.len;
 }
@@ -88,7 +69,7 @@ pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
     const key_cursor = self.mem.cursor;
     errdefer self.mem.cursor = key_cursor;
 
-    return try self.mem.aligned_reserve(size);
+    return try self.mem.reserve(size);
 }
 pub fn reserve(self: *Kivi, key_slice: []u8, size: usize) ![]u8 {
     var retrying = false;
@@ -134,7 +115,7 @@ pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
-            if (comp(key, indexed_key)) {
+            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
                 return self.entries[index].value;
             }
         }
@@ -167,7 +148,7 @@ pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
-            if (comp(key, indexed_key)) {
+            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
                 self.mem.free(indexed_key);
 
                 self.entries[index].key = null;

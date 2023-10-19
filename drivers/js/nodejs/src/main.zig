@@ -75,11 +75,9 @@ fn new_undefined(env: ntypes.napi_env) ntypes.napi_value {
 }
 inline fn allocate_temp_key(env: ntypes.napi_env, napi_buffer: ntypes.napi_value, should_be_freed: *bool) ![]u8 {
     var temp_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
-    var real_length = get_string_length(env, napi_buffer);
-    var length = std.mem.alignForward(usize, real_length, 8);
+    var length = get_string_length(env, napi_buffer);
 
-    var out: []u8 = undefined;
-    if (real_length > KEYS_DEFAULT_BUF_SIZE) {
+    if (length > KEYS_DEFAULT_BUF_SIZE) {
         var key_buf = allocator.alloc(u8, length) catch return error.Failed;
         should_be_freed.* = true;
 
@@ -88,19 +86,14 @@ inline fn allocate_temp_key(env: ntypes.napi_env, napi_buffer: ntypes.napi_value
             return error.Failed;
         }
 
-        out = key_buf;
-    } else if (real_length == 0) {
+        return key_buf;
+    } else if (length == 0) {
         return error.Failed;
-    } else {
-        _ = string_to_buffer(env, napi_buffer, &temp_buf);
-        out = temp_buf[0..length];
     }
 
-    if (length - real_length > 0) {
-        @memset(out[real_length..length], 0);
-    }
+    _ = string_to_buffer(env, napi_buffer, &temp_buf);
 
-    return out;
+    return temp_buf[0..length];
 }
 
 pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
