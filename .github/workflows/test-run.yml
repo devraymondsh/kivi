@@ -11,6 +11,6 @@ jobs:
       - name: Install npm
         run: sudo apt-get install -y curl unzip && curl -fsSL https://fnm.vercel.app/install | bash && export PATH="/$HOME/.local/share/fnm:$PATH" && eval "`fnm env`" && fnm install v20.6.1 && fnm use v20.6.1 && npm -g i npm@latest
       - name: Install Deno and Bun
-        run: npm install -g npm@latest; npm install -g bun deno-bin pnpm
+        run: npm install -g npm@latest; npm install -g bun deno-bin
       - name: Run tests
         run: zig build test

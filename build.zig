@@ -1,6 +1,5 @@
 const std = @import("std");
 const cwd = std.fs.cwd();
-var optimize: std.builtin.OptimizeMode = undefined;
 
 /// Build static and shared libraries given name and path
 const Libs = struct {
@@ -71,9 +70,27 @@ const FFI = struct {
     }
 };
 
+fn install_pnpm() !void {
+    const command_res = try std.ChildProcess.exec(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "npm", "install", "-g", "pnpm@latest" } });
+    if (command_res.stderr.len > 0) {
+        std.debug.print("{s}\n", .{command_res.stderr});
+        return error.PnpmNotFoundAndFailedToInstall;
+    }
+}
+fn install_pnpm_if_needed() !void {
+    const pnpm_version_command = std.ChildProcess.exec(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "pnpm", "--version" } });
+    if (pnpm_version_command) |command_res| {
+        if (command_res.stderr.len > 0) {
+            try install_pnpm();
+        }
+    } else |_| {
+        try install_pnpm();
+    }
+}
+
 pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
-    optimize = b.standardOptimizeOption(.{});
+    const optimize = b.standardOptimizeOption(.{});
     const target_info = try std.zig.system.NativeTargetInfo.detect(target);
     const arch = @tagName(target_info.target.cpu.arch);
     const os = @tagName(target_info.target.os.tag);
@@ -122,6 +139,9 @@ pub fn build(b: *std.Build) !void {
     const codegen_run = b.addRunArtifact(codegen);
     codegen_step.dependOn(&b.addRunArtifact(codegen).step);
 
+    // Install pnpm if needed
+    try install_pnpm_if_needed();
+
     // Runs all tests
     const test_step = b.step("test", "Runs all tests");
     test_step.dependOn(&b.addRunArtifact(core_targets.tests).step);
@@ -143,6 +163,7 @@ pub fn build(b: *std.Build) !void {
     inline for (@typeInfo(FFI).Struct.fields) |field| {
         test_step.dependOn(&b.addRunArtifact(@field(ffi, field.name)).step);
     }
+
     const js_driver_test_commad1 = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "src/drivers/js", "run", "nodejs-test" });
     js_driver_test_commad1.step.dependOn(drivers_build_step);
     test_step.dependOn(&js_driver_test_commad1.step);

@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { Kivi } from "../src/drivers/js/index.js";
 import { isNotNodeJS, isBun } from "../src/drivers/js/runtime.js";
 
-const benchmarkRepeat = 100;
+const benchmarkRepeat = 5;
 
 const average = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
 const resolveOnEmit = (event) => {
