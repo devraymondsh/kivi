@@ -1,5 +1,5 @@
-import path from "path";
 import os from "node:os";
+import path from "node:path";
 import { dlopen, FFIType, suffix, ptr } from "bun:ffi";
 
 export const machine = os.machine();
@@ -13,7 +13,7 @@ if (platform == "windows") {
 }
 const dllPath = path.join(
   __dirname,
-  `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
+  `../../../../zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
 );
 export const dlopenLib = dlopen(dllPath, {
   kivi_init: {

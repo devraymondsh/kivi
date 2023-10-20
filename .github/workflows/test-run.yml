@@ -1,9 +1,9 @@
-name: Drivers test run
+name: Core and driver tester
 
 on: push
 
 jobs:
-  js:
+  test-run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -12,11 +12,5 @@ jobs:
         run: sudo apt-get install -y curl unzip && curl -fsSL https://fnm.vercel.app/install | bash && export PATH="/$HOME/.local/share/fnm:$PATH" && eval "`fnm env`" && fnm install v20.6.1 && fnm use v20.6.1 && npm -g i npm@latest
       - name: Install Deno and Bun
         run: npm install -g npm@latest; npm install -g bun deno-bin
-      - name: Build Kivi
-        run: cd core && zig build && cd ../drivers/js/nodejs && zig build
-      - name: Run Nodejs tests
-        run: cd drivers/js && npm run nodejs-test
-      - name: Run Bun tests
-        run: cd drivers/js && npm run bun-test
-      - name: Run Deno tests
-        run: cd drivers/js && npm run deno-test
+      - name: Run tests
+        run: zig build test

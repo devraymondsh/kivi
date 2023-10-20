@@ -1,3 +1,6 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 function isNodeJS() {
   return typeof global !== "undefined" && globalThis === global;
 }
@@ -8,12 +11,21 @@ if (isNodeJS()) {
 }
 
 let RuntimeKivi;
-const { NodeKivi } = await import("./nodejs/src/index.js");
-const { getRuntimeKind } = await import("./runtime.js");
+const { NodeKivi } = await import(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "nodejs/index.js")
+);
+const { getRuntimeKind } = await import(
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), "runtime.js")
+);
 switch (getRuntimeKind()) {
   case "bun":
   case "deno":
-    const { DenoAndBunKivi } = await import("./deno&bun/index.js");
+    const { DenoAndBunKivi } = await import(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "./deno&bun/index.js"
+      )
+    );
     RuntimeKivi = DenoAndBunKivi;
     break;
   case "node":

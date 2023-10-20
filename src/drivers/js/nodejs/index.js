@@ -1,5 +1,7 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { isNodeJS } from "../../runtime.js";
+import { isNodeJS } from "../runtime.js";
 
 const require = createRequire(import.meta.url);
 
@@ -11,7 +13,12 @@ if (isNodeJS()) {
   platform = os.platform();
 } else {
   const { machine: denoOrBunMachine, platform: denoOrBunPlatform } =
-    await import("../../deno&bun/index.js");
+    await import(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../deno&bun/index.js"
+      )
+    );
   machine = denoOrBunMachine;
   platform = denoOrBunPlatform;
 }
@@ -19,7 +26,11 @@ if (platform == "win32") {
   platform = "windows";
 }
 
-const addon = require(`../zig-out/lib/kivi-addon-${machine}-${platform}.node`);
+const addonPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  `../../../../zig-out/lib/kivi-addon-${machine}-${platform}.node`
+);
+const addon = require(addonPath);
 export class NodeKivi {
   #buf = new ArrayBuffer(176);
 

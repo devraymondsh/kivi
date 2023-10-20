@@ -1,5 +1,5 @@
 const std = @import("std");
-const main_mod = @import("main");
+const core_mod = @import("core");
 
 const TypeMap = std.ComptimeStringMap([]const u8, .{
     .{ "void", "void" },
@@ -33,7 +33,7 @@ inline fn mapTypeStr(comptime T: type, comptime config: struct { is_return_type:
 }
 
 fn generate_C_headers(comptime Type: type, writer: anytype) !void {
-    if (Type == main_mod.Kivi) {
+    if (Type == core_mod.Kivi) {
         try writer.print(
             \\struct __attribute__((aligned({}))) Kivi {{
             \\  char __opaque[{}];
@@ -84,7 +84,7 @@ fn generate_C_headers(comptime Type: type, writer: anytype) !void {
 }
 
 pub fn main() !void {
-    const file = try std.fs.cwd().createFile("src/include/kivi.h", .{});
+    const file = try std.fs.cwd().createFile("src/core/include/kivi.h", .{});
     var output = std.io.bufferedWriter(file.writer());
     defer output.flush() catch {};
     const writer = output.writer();
@@ -95,6 +95,6 @@ pub fn main() !void {
         \\
         \\
     , .{});
-    try generate_C_headers(main_mod.Kivi, writer);
-    try generate_C_headers(main_mod, writer);
+    try generate_C_headers(core_mod.Kivi, writer);
+    try generate_C_headers(core_mod, writer);
 }

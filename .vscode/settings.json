@@ -8,11 +8,7 @@
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "C_Cpp.default.includePath": [
-    "${default}",
-    "core/src/include",
-    "drivers/js/nodejs/node_modules/node-api-headers/include"
-  ],
+  "C_Cpp.default.includePath": ["${default}", "src/core/include"],
   "C_Cpp.clang_format_fallbackStyle": "{BreakBeforeBraces: Attach}",
   "C_Cpp.vcFormat.newLine.beforeOpenBrace.block": "sameLine",
   "C_Cpp.vcFormat.newLine.beforeOpenBrace.lambda": "sameLine",

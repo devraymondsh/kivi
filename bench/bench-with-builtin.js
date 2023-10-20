@@ -1,9 +1,9 @@
 import fs from "node:fs";
-import json from "big-json";
 import path from "path";
+import json from "big-json";
 import { fileURLToPath } from "url";
-import { Kivi } from "../drivers/js/index.js";
-import { isNotNodeJS, isBun } from "../drivers/js/runtime.js";
+import { Kivi } from "../src/drivers/js/index.js";
+import { isNotNodeJS, isBun } from "../src/drivers/js/runtime.js";
 
 const benchmarkRepeat = 100;
 
@@ -37,9 +37,7 @@ const dataJsonPath = path.resolve(
 console.log("Loading the data. Please be patient.");
 if (!isBun()) {
   if (!fs.existsSync(dataJsonPath)) {
-    throw new Error(
-      "Failed to read the `bench/faker/data/data.json` file. Follow the instructions found in `bench/faker/data/readme.md` to generate it."
-    );
+    throw new Error("Failed to read the `bench/faker/data/data.json` file.");
   }
   const readStream = fs.createReadStream(dataJsonPath);
   const parseStream = json.createParseStream();

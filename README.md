@@ -12,9 +12,6 @@ Kivi is currently in development mode and not production ready. Here's a checkli
 - [ ] Start porting to other languages: Rust, Python, etc...
 
 
-## Contribution guide:
-Check the [contribution guide](CONTRIBUTING.md) for more information.
-
 ## Code of conduct:
 You can check our [code of conduct guidelines](CODE_OF_CONDUCT.md).
 

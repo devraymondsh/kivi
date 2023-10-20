@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import path from "path";
 import json from "big-json";
+import { fileURLToPath } from "url";
 import { faker } from "@faker-js/faker";
 
 const count = 2_000_000;
@@ -22,8 +24,12 @@ for (let i = 0; i <= count; i++) {
   }
 }
 
+const dataJsonPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "data/data.json"
+);
 console.log("Writing the data. Please be patient.");
-const writeStream = fs.createWriteStream("./data/data.json");
+const writeStream = fs.createWriteStream(dataJsonPath);
 const stringifyStream = json.createStringifyStream({
   body: arr,
 });

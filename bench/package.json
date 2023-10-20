@@ -7,11 +7,13 @@
   "scripts": {
     "nodejs-bench": "node bench-with-builtin.js",
     "bun-bench": " bun run bench-with-builtin.js",
+    "generate-fake-data": "node faker/generate.js",
     "deno-bench": "deno run --unstable --allow-all --v8-flags='--max-heap-size=2000,--max-old-space-size=2000' bench-with-builtin.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "big-json": "^3.2.0"
+    "big-json": "^3.2.0",
+    "@faker-js/faker": "^8.0.2"
   }
 }

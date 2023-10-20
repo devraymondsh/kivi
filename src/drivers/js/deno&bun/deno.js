@@ -1,3 +1,6 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 let suffix = "";
 switch (Deno.build.os) {
   case "windows":
@@ -22,7 +25,7 @@ if (platform == "windows") {
 }
 const dllPath = new URL(
   await import.meta.resolve(
-    `../../../core/zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
+    `../../../../zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
   )
 );
 export const dlopenLib = Deno.dlopen(dllPath, {
