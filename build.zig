@@ -12,7 +12,7 @@ const Libs = struct {
         }
 
         const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-        shared.strip = strip;
+        // shared.strip = strip;
         shared.force_pic = true;
         shared.single_threaded = true;
         shared.linker_allow_shlib_undefined = true;
@@ -23,7 +23,7 @@ const Libs = struct {
         var static: ?*std.Build.Step.Compile = null;
         if (with_static) {
             static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-            static.?.strip = strip;
+            // static.?.strip = strip;
             static.?.force_pic = true;
             static.?.single_threaded = true;
             static.?.linker_allow_shlib_undefined = true;
@@ -71,14 +71,14 @@ const FFI = struct {
 };
 
 fn install_pnpm() !void {
-    const command_res = try std.ChildProcess.exec(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "npm", "install", "-g", "pnpm@latest" } });
+    const command_res = try std.ChildProcess.run(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "npm", "install", "-g", "pnpm@latest" } });
     if (command_res.stderr.len > 0) {
         std.debug.print("{s}\n", .{command_res.stderr});
         return error.PnpmNotFoundAndFailedToInstall;
     }
 }
 fn install_pnpm_if_needed() !void {
-    const pnpm_version_command = std.ChildProcess.exec(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "pnpm", "--version" } });
+    const pnpm_version_command = std.ChildProcess.run(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "pnpm", "--version" } });
     if (pnpm_version_command) |command_res| {
         if (command_res.stderr.len > 0) {
             try install_pnpm();
@@ -144,6 +144,8 @@ pub fn build(b: *std.Build) !void {
 
     // Runs all tests
     const test_step = b.step("test", "Runs all tests");
+    test_step.dependOn(core_build_step);
+    test_step.dependOn(drivers_build_step);
     test_step.dependOn(&b.addRunArtifact(core_targets.tests).step);
     // Builds and runs FFI tests using 3 "linkage modes"
     const ffi = FFI.create(
@@ -176,16 +178,24 @@ pub fn build(b: *std.Build) !void {
 
     // Benchmarks Kivi
     const benchmark_step = b.step("bench", "Benchmarks kivi");
-    const bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "nodejs-bench" });
+    const node_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "nodejs-bench" });
+    const deno_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "deno-bench" });
+    const bun_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "bun-bench" });
     const npm_install_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "install" });
     if (cwd.openDir("bench/node_modules", .{})) |_| {} else |_| {
-        bench_sys_commad.step.dependOn(&npm_install_commad.step);
+        node_bench_sys_commad.step.dependOn(&npm_install_commad.step);
     }
     if (cwd.openFile("bench/faker/data/data.json", .{})) |_| {} else |_| {
         const sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "generate-fake-data" });
         sys_commad.step.dependOn(&npm_install_commad.step);
-        bench_sys_commad.step.dependOn(&sys_commad.step);
+        node_bench_sys_commad.step.dependOn(&sys_commad.step);
     }
-    bench_sys_commad.step.dependOn(drivers_build_step);
-    benchmark_step.dependOn(&bench_sys_commad.step);
+    benchmark_step.dependOn(core_build_step);
+    benchmark_step.dependOn(drivers_build_step);
+    benchmark_step.dependOn(&node_bench_sys_commad.step);
+    benchmark_step.dependOn(&deno_bench_sys_commad.step);
+    benchmark_step.dependOn(&bun_bench_sys_commad.step);
+    node_bench_sys_commad.step.dependOn(drivers_build_step);
+    bun_bench_sys_commad.step.dependOn(&node_bench_sys_commad.step);
+    deno_bench_sys_commad.step.dependOn(&bun_bench_sys_commad.step);
 }

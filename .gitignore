@@ -6,3 +6,4 @@
 bench/faker/data/*
 !bench/faker/data/README.md
 perf.data
+perf.data.old
