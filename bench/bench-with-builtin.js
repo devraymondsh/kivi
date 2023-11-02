@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import path from "path";
+import path from "node:path";
 import json from "big-json";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 import { Kivi } from "../src/drivers/js/index.js";
 import { isNotNodeJS, isBun } from "../src/drivers/js/runtime.js";
 
