@@ -4,12 +4,19 @@ import json from "big-json";
 import { fileURLToPath } from "url";
 import { faker } from "@faker-js/faker";
 
-const count = 2_000_000;
+const count = 1_000_000;
+
+const getRandomInt = (min, max) => {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+
+  return Math.floor(Math.random() * (max - min) + min);
+};
 
 const arr = [];
-for (let i = 0; i <= count; i++) {
+for (let i = 0; i < count; i++) {
   arr.push({
-    key: faker.string.uuid(),
+    key: faker.string.uuid() + "_" + faker.person.fullName(),
     value: JSON.stringify({
       bio: faker.person.bio(),
       gender: faker.person.gender(),

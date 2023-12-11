@@ -32,7 +32,7 @@ const addonPath = path.resolve(
 );
 const addon = require(addonPath);
 export class NodeKivi {
-  #buf = new ArrayBuffer(176);
+  #buf = new ArrayBuffer(56);
 
   init() {
     return addon.kivi_init(this.#buf);

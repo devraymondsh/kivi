@@ -19,33 +19,24 @@ const FreeListNode16byte = packed struct {
 };
 
 cursor: usize,
+length: usize,
 freelist: *FreeListNode8byte,
 mem: []align(std.mem.page_size) u8,
-page_size: usize,
-protected_mem_cursor: usize,
 
 const Mmap = @This();
 
-fn mprotect(self: *Mmap) !void {
-    const protected_mem_cursor = self.protected_mem_cursor + self.page_size;
-
-    if (!is_windows) {
-        try std.os.mprotect(@alignCast(self.mem[self.protected_mem_cursor..protected_mem_cursor]), std.os.PROT.READ | std.os.PROT.WRITE);
-    } else {
-        _ = try std.os.windows.VirtualAlloc(@ptrCast(@alignCast(self.mem)), protected_mem_cursor, std.os.windows.MEM_COMMIT, std.os.windows.PAGE_READWRITE);
-    }
-
-    self.protected_mem_cursor = protected_mem_cursor;
+fn unlikely() void {
+    @setCold(true);
 }
 
-pub fn init(total_size: usize, page_size: usize) !Mmap {
+pub fn init(total_size: usize) !Mmap {
     var mem: []align(std.mem.page_size) u8 = undefined;
     const size = std.mem.alignForward(usize, total_size, std.mem.page_size);
     if (!is_windows) {
         mem = try std.os.mmap(
             null,
             size,
-            std.os.PROT.NONE,
+            std.os.PROT.WRITE | std.os.PROT.READ,
             std.os.MAP.ANONYMOUS | std.os.MAP.PRIVATE,
             -1,
             0,
@@ -57,10 +48,7 @@ pub fn init(total_size: usize, page_size: usize) !Mmap {
         mem.ptr = @alignCast(@ptrCast(lpvoid));
     }
 
-    var mmap = Mmap{ .mem = mem, .cursor = 0, .protected_mem_cursor = 0, .freelist = &empty_freelist, .page_size = std.mem.alignForward(usize, page_size, std.mem.page_size) };
-    mmap.mprotect() catch unreachable;
-
-    return mmap;
+    return Mmap{ .mem = mem, .cursor = 0, .length = size, .freelist = &empty_freelist };
 }
 
 pub fn reserve(self: *Mmap, size: usize) ![]u8 {
@@ -90,11 +78,9 @@ pub fn reserve(self: *Mmap, size: usize) ![]u8 {
         ending_pos += std.mem.alignForward(usize, size - 8, 8);
     }
 
-    if (ending_pos > self.protected_mem_cursor) {
-        try self.mprotect();
-        while (ending_pos > self.protected_mem_cursor) {
-            try self.mprotect();
-        }
+    if (ending_pos > self.length) {
+        unlikely();
+        return error.OutOfMemory;
     }
 
     self.cursor = ending_pos;

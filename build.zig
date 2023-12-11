@@ -142,11 +142,15 @@ pub fn build(b: *std.Build) !void {
     // Install pnpm if needed
     try install_pnpm_if_needed();
 
+    // Strcmp tests
+    var strcmp_tests = b.addTest(.{ .root_source_file = .{ .path = "src/core/Strcmp.zig" }, .target = target, .optimize = optimize });
+
     // Runs all tests
     const test_step = b.step("test", "Runs all tests");
     test_step.dependOn(core_build_step);
     test_step.dependOn(drivers_build_step);
     test_step.dependOn(&b.addRunArtifact(core_targets.tests).step);
+    test_step.dependOn(&strcmp_tests.step);
     // Builds and runs FFI tests using 3 "linkage modes"
     const ffi = FFI.create(
         b,

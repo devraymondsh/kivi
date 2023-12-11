@@ -3,11 +3,18 @@ import path from "node:path";
 import json from "big-json";
 import { fileURLToPath } from "node:url";
 import { Kivi } from "../src/drivers/js/index.js";
-import { isNotNodeJS, isBun } from "../src/drivers/js/runtime.js";
+import { isBun } from "../src/drivers/js/runtime.js";
 
-const benchmarkRepeat = 5;
+const repeatBenchmark = 2;
+const fakeDataJsonFile = "faker/data/data.json";
 
-const average = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+const assert = (name, left, right) => {
+  if (left !== right) {
+    throw new Error(
+      `Assertion '${name}' failed! Left was '${left}' and right was '${right}'.`
+    );
+  }
+};
 const resolveOnEmit = (event) => {
   return new Promise(function (resolve, reject) {
     try {
@@ -17,27 +24,108 @@ const resolveOnEmit = (event) => {
     }
   });
 };
-const getRandomInts = (min, max) => {
-  const all = [];
+const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
+const numberWithCommas = (x) =>
+  x.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",");
 
-  for (let i = 0; i < 10; i++) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    all.push(Math.floor(Math.random() * (max - min) + min));
+const benchmarkDeletion = (data, o) => {
+  let count = 0;
+  const startingTime = performance.now();
+  for (const item of data) {
+    assert(`${o.name} deletion`, o.del(item.key), item.value);
+    count++;
+  }
+  return performance.now() - startingTime;
+};
+const benchmarkLookup = (data, o) => {
+  const startingTime = performance.now();
+  for (const item of data) {
+    assert(`${o.name} lookup`, o.get(item.key), item.value);
+  }
+  return performance.now() - startingTime;
+};
+const benchmarkInsertion = (data, o) => {
+  const startingTime = performance.now();
+  for (const item of data) {
+    o.set(item.key, item.value);
+  }
+  return performance.now() - startingTime;
+};
+
+let averageLogResult = [];
+const wrapInHumanReadable = (value) => {
+  return {
+    totalLookupTime: roundToTwoDecimal(value.totalLookupTime) + " ms",
+    lookupPerSecond: numberWithCommas(Math.round(value.lookupPerSecond)),
+    totalInsertionTime: roundToTwoDecimal(value.totalInsertionTime) + " ms",
+    insertionPerSecond: numberWithCommas(Math.round(value.insertionPerSecond)),
+    totalDeletionTime: roundToTwoDecimal(value.totalDeletionTime) + " ms",
+    deletionPerSecond: numberWithCommas(Math.round(value.deletionPerSecond)),
+  };
+};
+const formatLogResult = (value) => {
+  return {
+    totalLookupTime: value.lookupDuration,
+    lookupPerSecond: data.length / (value.lookupDuration / 1000),
+    totalInsertionTime: value.insertionDuration,
+    insertionPerSecond: data.length / (value.insertionDuration / 1000),
+    totalDeletionTime: value.deletionDuration,
+    deletionPerSecond: data.length / (value.deletionDuration / 1000),
+  };
+};
+const logResults = (name, durationArr, averageArg) => {
+  let formattedDurationArr = [];
+  const average = formatLogResult(averageArg);
+  for (const duration of durationArr) {
+    formattedDurationArr.push(wrapInHumanReadable(formatLogResult(duration)));
   }
 
-  return all;
+  averageLogResult.push({
+    name,
+    totalLookupTime: average.totalLookupTime,
+    totalInsertionTime: average.totalInsertionTime,
+    totalDeletionTime: average.totalDeletionTime,
+  });
+
+  console.log(`\n${name}:`);
+  console.table({
+    ...formattedDurationArr,
+    average: wrapInHumanReadable(average),
+  });
+};
+const logRatio = () => {
+  console.log(
+    `\n This table shows how much ${averageLogResult[0].name} is faster than ${averageLogResult[1].name}:`
+  );
+
+  console.table({
+    lookup:
+      roundToTwoDecimal(
+        averageLogResult[1].totalLookupTime /
+          averageLogResult[0].totalLookupTime
+      ) + "x",
+    insertion:
+      roundToTwoDecimal(
+        averageLogResult[1].totalInsertionTime /
+          averageLogResult[0].totalInsertionTime
+      ) + "x",
+    deletion:
+      roundToTwoDecimal(
+        averageLogResult[1].totalDeletionTime /
+          averageLogResult[0].totalDeletionTime
+      ) + "x",
+  });
 };
 
 let data;
 const dataJsonPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "faker/data/data.json"
+  fakeDataJsonFile
 );
-console.log("Loading the data. Please be patient.");
+console.log("Loading the data. Please be patient...");
 if (!isBun()) {
   if (!fs.existsSync(dataJsonPath)) {
-    throw new Error("Failed to read the `bench/faker/data/data.json` file.");
+    throw new Error(`Failed to read the '${fakeDataJsonFile}' file.`);
   }
   const readStream = fs.createReadStream(dataJsonPath);
   const parseStream = json.createParseStream();
@@ -49,145 +137,110 @@ if (!isBun()) {
   data = await file.json();
 }
 
-const initData = data.slice(0, data.length * 0.5);
-const runData = data.slice(data.length * 0.5, data.length);
-
-const assert = (name, left, right) => {
-  if (left !== right) {
-    throw new Error(
-      `Assertion '${name}' failed! Left was '${left}' and right was '${right}'.`
-    );
-  }
-};
-
-const bench = (random_indexes, obj) => {
-  const o = obj.init();
-
-  initData.forEach((element) => {
-    obj.set(o, element.key, element.value);
-  });
-
-  let get_time = 0;
-  let set_time = 0;
-  let del_time = 0;
-  const start = performance.now();
-  runData.forEach((element, index) => {
-    const set_start = performance.now();
-    obj.set(o, element.key, element.value);
-    assert(`${obj.name} set`, obj.get(o, element.key), element.value);
-    set_time += performance.now() - set_start;
-
-    const get_start = performance.now();
-    for (let i = 0; i < 7; i++) {
-      const value = obj.get(o, data[index + random_indexes[i]].key);
-      // The value may have been deleted by the previous obj.del
-      if (value) {
-        assert(`${obj.name} get`, value, data[index + random_indexes[i]].value);
-      }
-    }
-    get_time += performance.now() - get_start;
-
-    const del_start = performance.now();
-    assert(`${obj.name} del`, obj.del(o, element.key), element.value);
-    del_time += performance.now() - del_start;
-  });
-  const end = performance.now();
-  const duration = end - start;
-
-  console.log(`${obj.name} get\t`, get_time, "ms");
-  console.log(`${obj.name} set\t`, set_time, "ms");
-  console.log(`${obj.name} del\t`, del_time, "ms");
-  console.log(`${obj.name} overall\t`, duration, "ms");
-
-  obj.destroy(o);
-
-  return duration;
-};
-
-console.log(`Running the benchmark ${benchmarkRepeat} times.`);
-const [jsMapResults, plainJsObjectReults, kiviNapiResults, kiviFFIResults] = [
-  [],
-  [],
-  [],
-  [],
-];
-const random_indexes = getRandomInts(1, 20);
-for (let i = 0; i <= benchmarkRepeat; i++) {
-  jsMapResults.push(
-    bench(random_indexes, {
-      name: "JsMap",
-      init: () => new Map(),
-      get: (o, k) => o.get(k),
-      destroy: (o) => o.clear(),
-      del: (o, k) => {
-        const v = o.get(k);
-        o.delete(k);
-        return v;
-      },
-      set: (o, k, v) => o.set(k, v),
-    })
-  );
-  plainJsObjectReults.push(
-    bench(random_indexes, {
-      name: "JsObject",
-      init: () => {
-        return {};
-      },
-      destroy: (o) => {},
-      get: (o, k) => o[k],
-      del: (o, k) => {
-        const v = o[k];
-        o[k] = undefined;
-        return v;
-      },
-      set: (o, k, v) => {
-        o[k] = v;
-      },
-    })
-  );
-
-  const kiviObj = {
-    name: "Kivi with Napi",
-    init: () => new Kivi(),
-    get: (o, k) => o.get(k),
-    del: (o, k) => o.del(k),
-    destroy: (o) => o.destroy(),
-    set: (o, k, v) => o.set(k, v),
+const builtinMapBenchmark = () => {
+  const durationArr = [];
+  let average = {
+    insertionDuration: 0,
+    lookupDuration: 0,
+    deletionDuration: 0,
   };
-  kiviNapiResults.push(bench(random_indexes, kiviObj));
-  if (isNotNodeJS()) {
-    kiviFFIResults.push(
-      bench(random_indexes, {
-        ...kiviObj,
-        name: "Kivi without Napi",
-      })
-    );
+  for (let i = 0; i < repeatBenchmark; i++) {
+    const o = {
+      name: "JsMap",
+      map: new Map(),
+      get: function (k) {
+        return this.map.get(k);
+      },
+      set: function (k, v) {
+        return this.map.set(k, v);
+      },
+      del: function (k) {
+        const v = this.map.get(k);
+        this.map.delete(k);
+        return v;
+      },
+      destroy: function () {
+        return this.map.clear();
+      },
+    };
+    const insertionDuration = benchmarkInsertion(data, o);
+    const lookupDuration = benchmarkLookup(data, o);
+    const deletionDuration = benchmarkDeletion(data, o);
+    o.destroy();
+    durationArr.push({
+      iteration: i,
+      insertionDuration,
+      lookupDuration,
+      deletionDuration,
+    });
+    if (average.insertionDuration === 0) {
+      average = {
+        insertionDuration,
+        lookupDuration,
+        deletionDuration,
+      };
+    } else {
+      average = {
+        insertionDuration: (average.insertionDuration + insertionDuration) / 2,
+        lookupDuration: (average.lookupDuration + lookupDuration) / 2,
+        deletionDuration: (average.deletionDuration + deletionDuration) / 2,
+      };
+    }
   }
+  logResults("JsMap", durationArr, average);
+};
+const kiviBenchmark = () => {
+  const durationArr = [];
+  let average = {
+    insertionDuration: 0,
+    lookupDuration: 0,
+    deletionDuration: 0,
+  };
+  for (let i = 0; i < repeatBenchmark; i++) {
+    const o = {
+      name: "Kivi",
+      map: new Kivi(),
+      get: function (k) {
+        return this.map.get(k);
+      },
+      set: function (k, v) {
+        return this.map.set(k, v);
+      },
+      del: function (k) {
+        return this.map.del(k);
+      },
+      destroy: function () {
+        return this.map.destroy();
+      },
+    };
+    const insertionDuration = benchmarkInsertion(data, o);
+    const lookupDuration = benchmarkLookup(data, o);
+    const deletionDuration = benchmarkDeletion(data, o);
+    o.destroy();
+    durationArr.push({
+      iteration: i,
+      insertionDuration,
+      lookupDuration,
+      deletionDuration,
+    });
+    if (average.insertionDuration === 0) {
+      average = {
+        insertionDuration,
+        lookupDuration,
+        deletionDuration,
+      };
+    } else {
+      average = {
+        insertionDuration: (average.insertionDuration + insertionDuration) / 2,
+        lookupDuration: (average.lookupDuration + lookupDuration) / 2,
+        deletionDuration: (average.deletionDuration + deletionDuration) / 2,
+      };
+    }
+  }
+  logResults("Kivi", durationArr, average);
+};
 
-  console.log(
-    "------------------------------------------------------------------------"
-  );
-}
+builtinMapBenchmark();
+kiviBenchmark();
 
-const [
-  jsMapResultsAverage,
-  plainJsObjectReultsAverage,
-  kiviNapiResultsAverage,
-  kiviFFIResultsAverage,
-] = [
-  average(jsMapResults),
-  average(plainJsObjectReults),
-  average(kiviNapiResults),
-  average(kiviFFIResults),
-];
-
-console.log(`JS Map average\t`, jsMapResultsAverage, "ms");
-console.log(`JS Object average\t`, plainJsObjectReultsAverage, "ms");
-console.log(`Kivi using Napi average\t`, kiviNapiResultsAverage, "ms");
-if (isNotNodeJS()) {
-  console.log(
-    `Kivi using runtime's FFI average\t`,
-    kiviFFIResultsAverage,
-    "ms"
-  );
-}
+logRatio();

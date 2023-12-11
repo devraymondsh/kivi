@@ -17,6 +17,15 @@
   "C_Cpp.vcFormat.newLine.beforeOpenBrace.namespace": "sameLine",
   "files.associations": {
     "stdio.h": "c",
-    "node_api.h": "c"
+    "node_api.h": "c",
+    "immintrin.h": "c",
+    "mmintrin.h": "c",
+    "string_view": "c",
+    "stdint.h": "c",
+    "stdbool.h": "c",
+    "math.h": "c",
+    "random": "c",
+    "*.tcc": "c",
+    "cmath": "c"
   }
 }

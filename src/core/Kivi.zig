@@ -1,10 +1,10 @@
 const std = @import("std");
 const MMap = @import("Mmap.zig");
+const strcmp = @import("Strcmp.zig").strcmp;
 
 pub const Config = extern struct {
-    maximum_elments: usize = 3_125_000,
+    maximum_elements: usize = 1_200_000,
     mem_size: usize = 1000 * 1024 * 1024,
-    mempage_size: usize = 200 * 1024 * 1024,
 };
 const Entry = struct {
     key: ?[]u8,
@@ -37,10 +37,10 @@ inline fn stringcpy(dest: []u8, src: []const u8) void {
 }
 
 pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
-    const maximum_elements = upper_power_of_two(config.maximum_elments);
-    self.mem = try MMap.init(config.mem_size, config.mempage_size);
+    const maximum_elements = upper_power_of_two(config.maximum_elements);
+    self.mem = try MMap.init(config.mem_size);
 
-    var reserved_entries = try self.mem.reserve(maximum_elements * @sizeOf(Entry));
+    const reserved_entries = try self.mem.reserve(maximum_elements * @sizeOf(Entry));
     self.entries.ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr)));
     self.entries.len = maximum_elements;
     @memset(self.entries, Entry{ .key = null, .value = undefined });
@@ -49,11 +49,11 @@ pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
 }
 
 pub fn init(config: *const Config) !Kivi {
-    const maximum_elements = upper_power_of_two(config.maximum_elments);
-    const mem = try MMap.init(config.mem_size, config.mempage_size);
+    const maximum_elements = upper_power_of_two(config.maximum_elements);
+    const mem = try MMap.init(config.mem_size);
 
-    var reserved_entries = try mem.reserve(maximum_elements * @sizeOf(Entry));
-    var entries: []Entry = .{
+    const reserved_entries = try mem.reserve(maximum_elements * @sizeOf(Entry));
+    const entries: []Entry = .{
         .ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr))),
         .len = maximum_elements,
     };
@@ -115,7 +115,8 @@ pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
-            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
+            // std.mem.eql(u8, key, indexed_key[0..key.len])
+            if (indexed_key.len >= key.len and strcmp(key, indexed_key[0..key.len])) {
                 return self.entries[index].value;
             }
         }
@@ -148,7 +149,7 @@ pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
     var index = self.key_to_possible_index(key);
     while (true) {
         if (self.entries[index].key) |indexed_key| {
-            if (indexed_key.len >= key.len and std.mem.eql(u8, key, indexed_key[0..key.len])) {
+            if (indexed_key.len >= key.len and strcmp(key, indexed_key[0..key.len])) {
                 self.mem.free(indexed_key);
 
                 self.entries[index].key = null;

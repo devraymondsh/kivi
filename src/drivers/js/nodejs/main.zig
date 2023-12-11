@@ -8,7 +8,7 @@ var GPA = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = GPA.allocator();
 
 fn get_args(env: ntypes.napi_env, info: ntypes.napi_callback_info, arg_count: [*c]usize, args: [*c]ntypes.napi_value) usize {
-    var cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
+    const cb_status: ntypes.napi_status = symbols.napi_get_cb_info(env, info, arg_count, args, null, null);
     if (cb_status == ntypes.napi_ok) {
         return arg_count.*;
     }
@@ -75,10 +75,10 @@ fn new_undefined(env: ntypes.napi_env) ntypes.napi_value {
 }
 inline fn allocate_temp_key(env: ntypes.napi_env, napi_buffer: ntypes.napi_value, should_be_freed: *bool) ![]u8 {
     var temp_buf: [KEYS_DEFAULT_BUF_SIZE]u8 = undefined;
-    var length = get_string_length(env, napi_buffer);
+    const length = get_string_length(env, napi_buffer);
 
     if (length > KEYS_DEFAULT_BUF_SIZE) {
-        var key_buf = allocator.alloc(u8, length) catch return error.Failed;
+        const key_buf = allocator.alloc(u8, length) catch return error.Failed;
         should_be_freed.* = true;
 
         const written_len = string_to_buffer(env, napi_buffer, key_buf);
@@ -99,10 +99,10 @@ inline fn allocate_temp_key(env: ntypes.napi_env, napi_buffer: ntypes.napi_value
 pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 1;
     var args: [1]ntypes.napi_value = undefined;
-    var argc: usize = get_args(env, info, &args_count, &args);
+    const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var kivi_result: usize = arg_to_kivi(env, args[0]).?.init_default_allocator(&Kivi.Config{}) catch 0;
+    const kivi_result: usize = arg_to_kivi(env, args[0]).?.init_default_allocator(&Kivi.Config{}) catch 0;
     if (kivi_result == @sizeOf(Kivi)) {
         return new_unint(env, @intCast(kivi_result));
     }
@@ -111,7 +111,7 @@ pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info
 pub export fn kivi_deinit_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 1;
     var args: [1]ntypes.napi_value = undefined;
-    var argc: usize = get_args(env, info, &args_count, &args);
+    const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
     arg_to_kivi(env, args[0]).?.deinit();
@@ -121,7 +121,7 @@ pub export fn kivi_deinit_js(env: ntypes.napi_env, info: ntypes.napi_callback_in
 pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
     var args: [2]ntypes.napi_value = undefined;
-    var argc: usize = get_args(env, info, &args_count, &args);
+    const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
     var self = arg_to_kivi(env, args[0]).?;
@@ -134,7 +134,7 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         }
     }
 
-    var value = self.get_slice(key) catch return new_null(env);
+    const value = self.get_slice(key) catch return new_null(env);
     if (value.len == 0) {
         return new_null(env);
     }
@@ -144,26 +144,26 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
 pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 3;
     var args: [3]ntypes.napi_value = undefined;
-    var argc: usize = get_args(env, info, &args_count, &args);
+    const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
     var self = arg_to_kivi(env, args[0]).?;
 
-    var key_len: usize = get_string_length(env, args[1]);
+    const key_len: usize = get_string_length(env, args[1]);
     if (key_len == 0) {
         return new_unint(env, 0);
     }
-    var key_buf = self.reserve_key(key_len) catch return new_unint(env, 0);
+    const key_buf = self.reserve_key(key_len) catch return new_unint(env, 0);
     const written_key_len = string_to_buffer(env, args[1], key_buf);
     if (written_key_len == 0) {
         return new_unint(env, 0);
     }
 
-    var value_len: usize = get_string_length(env, args[2]);
+    const value_len: usize = get_string_length(env, args[2]);
     if (value_len == 0) {
         return new_unint(env, 0);
     }
-    var value_buf = self.reserve(key_buf, value_len) catch {
+    const value_buf = self.reserve(key_buf, value_len) catch {
         self.undo_reserve(key_buf);
         return new_unint(env, 0);
     };
@@ -177,7 +177,7 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
 pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
     var args: [2]ntypes.napi_value = undefined;
-    var argc: usize = get_args(env, info, &args_count, &args);
+    const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
     var self = arg_to_kivi(env, args[0]).?;
@@ -190,7 +190,7 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         }
     }
 
-    var value = self.del_slice(key) catch return new_null(env);
+    const value = self.del_slice(key) catch return new_null(env);
     if (value.len == 0) {
         return new_null(env);
     }
