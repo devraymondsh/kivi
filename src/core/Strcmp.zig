@@ -10,7 +10,7 @@ const std = @import("std");
 comptime {
     asm (
         \\.intel_syntax noprefix
-        \\sse42_strcmp:                           # @sse42_strcmp
+        \\sse42_strcmp:
         \\        movdqu  xmm0, xmmword ptr [rdi + rcx]
         \\        mov     eax, edx
         \\        pcmpestri       xmm0, xmmword ptr [rsi + rcx], 24
