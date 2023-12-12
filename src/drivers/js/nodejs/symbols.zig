@@ -6,6 +6,7 @@ pub var napi_create_string_utf8: *const @TypeOf(c.napi_create_string_utf8) = und
 pub var napi_create_uint32: *const @TypeOf(c.napi_create_uint32) = undefined;
 pub var napi_define_properties: *const @TypeOf(c.napi_define_properties) = undefined;
 pub var napi_get_arraybuffer_info: *const @TypeOf(c.napi_get_arraybuffer_info) = undefined;
+pub var napi_get_buffer_info: *const @TypeOf(c.napi_get_buffer_info) = undefined;
 pub var napi_get_cb_info: *const @TypeOf(c.napi_get_cb_info) = undefined;
 pub var napi_get_null: *const @TypeOf(c.napi_get_null) = undefined;
 pub var napi_get_undefined: *const @TypeOf(c.napi_get_undefined) = undefined;
@@ -30,6 +31,7 @@ pub fn init_symbols() void {
         napi_create_uint32 = load_sym(*const @TypeOf(c.napi_create_uint32), "napi_create_uint32");
         napi_define_properties = load_sym(*const @TypeOf(c.napi_define_properties), "napi_define_properties");
         napi_get_arraybuffer_info = load_sym(*const @TypeOf(c.napi_get_arraybuffer_info), "napi_get_arraybuffer_info");
+        napi_get_buffer_info = load_sym(*const @TypeOf(c.napi_get_buffer_info), "napi_get_buffer_info");
         napi_get_cb_info = load_sym(*const @TypeOf(c.napi_get_cb_info), "napi_get_cb_info");
         napi_get_null = load_sym(*const @TypeOf(c.napi_get_null), "napi_get_null");
         napi_get_undefined = load_sym(*const @TypeOf(c.napi_get_undefined), "napi_get_undefined");
@@ -40,6 +42,7 @@ pub fn init_symbols() void {
         napi_create_uint32 = c.napi_create_uint32;
         napi_define_properties = c.napi_define_properties;
         napi_get_arraybuffer_info = c.napi_get_arraybuffer_info;
+        napi_get_buffer_info = c.napi_get_buffer_info;
         napi_get_cb_info = c.napi_get_cb_info;
         napi_get_null = c.napi_get_null;
         napi_get_undefined = c.napi_get_undefined;

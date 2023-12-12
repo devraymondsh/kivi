@@ -1,5 +1,6 @@
 const std = @import("std");
 const MMap = @import("Mmap.zig");
+const StringHashMap = @import("Hashmap.zig").StringHashMap;
 const strcmp = @import("Strcmp.zig").strcmp;
 
 pub const Config = extern struct {
@@ -12,96 +13,37 @@ const Entry = struct {
 };
 
 mem: MMap,
-entries: []Entry,
+entries: StringHashMap(Entry),
+mem_allocator: std.mem.Allocator,
 
 const Kivi = @This();
 
-fn upper_power_of_two(n_arg: u64) u64 {
-    var n = n_arg;
-    n -= 1;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n |= n >> 32;
-    n += 1;
-
-    return n;
-}
-inline fn key_to_possible_index(self: *const Kivi, key: []const u8) usize {
-    return std.hash.Wyhash.hash(0, key) & (self.entries.len - 1);
-}
 inline fn stringcpy(dest: []u8, src: []const u8) void {
     @memcpy(dest.ptr[0..src.len], src.ptr[0..src.len]);
 }
 
-pub fn init_default_allocator(self: *Kivi, config: *const Config) !usize {
-    const maximum_elements = upper_power_of_two(config.maximum_elements);
+pub fn init(self: *Kivi, config: *const Config) !usize {
+    const maximum_elements = std.math.ceilPowerOfTwo(usize, config.maximum_elements) catch unreachable;
     self.mem = try MMap.init(config.mem_size);
+    self.mem_allocator = self.mem.allocator();
 
-    const reserved_entries = try self.mem.reserve(maximum_elements * @sizeOf(Entry));
-    self.entries.ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr)));
-    self.entries.len = maximum_elements;
-    @memset(self.entries, Entry{ .key = null, .value = undefined });
+    self.entries = StringHashMap(Entry){};
+    try self.entries.ensureTotalCapacity(self.mem_allocator, @as(u32, @intCast(maximum_elements)));
 
     return @sizeOf(Kivi);
 }
 
-pub fn init(config: *const Config) !Kivi {
-    const maximum_elements = upper_power_of_two(config.maximum_elements);
-    const mem = try MMap.init(config.mem_size);
-
-    const reserved_entries = try mem.reserve(maximum_elements * @sizeOf(Entry));
-    const entries: []Entry = .{
-        .ptr = @as([*]Entry, @ptrCast(@alignCast(reserved_entries.ptr))),
-        .len = maximum_elements,
-    };
-    @memset(entries, Entry{ .key = null, .value = undefined });
-
-    return Kivi{ .entries = entries, .table_size = maximum_elements, .mem = mem };
-}
-
-pub fn undo_reserve(self: *Kivi, slice: []u8) void {
-    self.mem.cursor -= slice.len;
-}
 pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
-    const key_cursor = self.mem.cursor;
-    errdefer self.mem.cursor = key_cursor;
-
-    return try self.mem.reserve(size);
+    return self.mem_allocator.alloc(u8, size);
 }
-pub fn reserve(self: *Kivi, key_slice: []u8, size: usize) ![]u8 {
-    var retrying = false;
-    var index = self.key_to_possible_index(key_slice);
-    while (true) {
-        if (self.entries[index].key == null) {
-            const value_slice = try self.mem.reserve(size);
-            self.entries[index] = Entry{
-                .key = key_slice,
-                .value = value_slice,
-            };
+pub fn reserve(self: *Kivi, key: []u8, size: usize) ![]u8 {
+    const value = try self.mem_allocator.alloc(u8, size);
+    try self.entries.put(self.mem_allocator, key, Entry{ .key = key, .value = value });
 
-            return value_slice;
-        }
-
-        index += 1;
-        if (index >= self.entries.len) {
-            if (!retrying) {
-                index = 0;
-                retrying = true;
-            } else {
-                break;
-            }
-        }
-    }
-
-    return error.NoFreeSlot;
+    return value;
 }
 pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_slice = try self.reserve_key(key.len);
-    errdefer self.undo_reserve(key_slice);
-
     const value_slice = try self.reserve(key_slice, value.len);
 
     stringcpy(key_slice, key);
@@ -111,28 +53,11 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
 }
 
 pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
-    var retrying = false;
-    var index = self.key_to_possible_index(key);
-    while (true) {
-        if (self.entries[index].key) |indexed_key| {
-            // std.mem.eql(u8, key, indexed_key[0..key.len])
-            if (indexed_key.len >= key.len and strcmp(key, indexed_key[0..key.len])) {
-                return self.entries[index].value;
-            }
-        }
-
-        index += 1;
-        if (index >= self.entries.len) {
-            if (!retrying) {
-                index = 0;
-                retrying = true;
-            } else {
-                break;
-            }
-        }
+    if (self.entries.get(key)) |value| {
+        return value.value;
+    } else {
+        return error.NotFound;
     }
-
-    return error.NotFound;
 }
 pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice = try self.get_slice(key);
@@ -145,34 +70,14 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
 }
 
 pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
-    var retrying = false;
-    var index = self.key_to_possible_index(key);
-    while (true) {
-        if (self.entries[index].key) |indexed_key| {
-            if (indexed_key.len >= key.len and strcmp(key, indexed_key[0..key.len])) {
-                self.mem.free(indexed_key);
-
-                self.entries[index].key = null;
-
-                return self.entries[index].value;
-            }
-        }
-
-        index += 1;
-        if (index >= self.entries.len) {
-            if (!retrying) {
-                index = 0;
-                retrying = true;
-            } else {
-                break;
-            }
-        }
+    if (self.entries.fetchRemove(key)) |kv| {
+        return kv.value.value;
+    } else {
+        return error.NotFound;
     }
-
-    return error.NotFound;
 }
 pub fn del_value(self: *Kivi, value: []u8) void {
-    self.mem.free(value);
+    self.mem_allocator.free(value);
 }
 pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice = try self.del_slice(key);

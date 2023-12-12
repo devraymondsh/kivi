@@ -12,7 +12,7 @@ const Libs = struct {
         }
 
         const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-        // shared.strip = strip;
+        shared.strip = strip;
         shared.force_pic = true;
         shared.single_threaded = true;
         shared.linker_allow_shlib_undefined = true;
@@ -23,7 +23,7 @@ const Libs = struct {
         var static: ?*std.Build.Step.Compile = null;
         if (with_static) {
             static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-            // static.?.strip = strip;
+            static.?.strip = strip;
             static.?.force_pic = true;
             static.?.single_threaded = true;
             static.?.linker_allow_shlib_undefined = true;
@@ -197,8 +197,8 @@ pub fn build(b: *std.Build) !void {
     benchmark_step.dependOn(core_build_step);
     benchmark_step.dependOn(drivers_build_step);
     benchmark_step.dependOn(&node_bench_sys_commad.step);
-    benchmark_step.dependOn(&deno_bench_sys_commad.step);
-    benchmark_step.dependOn(&bun_bench_sys_commad.step);
+    // benchmark_step.dependOn(&deno_bench_sys_commad.step);
+    // benchmark_step.dependOn(&bun_bench_sys_commad.step);
     node_bench_sys_commad.step.dependOn(drivers_build_step);
     bun_bench_sys_commad.step.dependOn(&node_bench_sys_commad.step);
     deno_bench_sys_commad.step.dependOn(&bun_bench_sys_commad.step);

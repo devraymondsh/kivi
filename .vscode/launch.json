@@ -8,8 +8,11 @@
       "type": "lldb",
       "request": "launch",
       "name": "Benchmark debug",
+      // "program": "/home/raymond/.zvm/bin/zig",
       "program": "node",
       "args": ["bench/bench-with-builtin.js"],
+      // "args": ["src/drivers/js/tests/kivi.js"],
+      // "args": ["build", "test"],
       "cwd": "${workspaceFolder}"
     }
   ]

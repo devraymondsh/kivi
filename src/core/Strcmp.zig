@@ -40,7 +40,6 @@ comptime {
         \\        xchg    edi, ebx
         \\        cpuid
         \\        xchg    edi, ebx
-        \\
         \\        mov     eax, ecx
         \\        shr     eax, 20
         \\        and     eax, 1
@@ -58,7 +57,7 @@ pub fn strcmp(a: []const u8, b: []const u8) bool {
     const remained = a.len - previous_mul_16;
 
     var prt_cursor: usize = 0;
-    while (prt_cursor <= previous_mul_16 and previous_mul_16 != 0) {
+    while (prt_cursor < previous_mul_16 and previous_mul_16 != 0) {
         if (!sse42_strcmp(a.ptr, b.ptr, 16, prt_cursor)) {
             return false;
         }
@@ -86,4 +85,6 @@ test "strcmp" {
     try std.testing.expect(strcmp("01234567F9123456", "0123456789123456") == false);
     try std.testing.expect(strcmp("012345678912345678", "012345678912345678") == true);
     try std.testing.expect(strcmp("01234567F912345678", "012345678912345678") == false);
+    try std.testing.expect(strcmp("cf0a4a13-a036-427d-bc67-982e094ce95f_Lionel Ankunding", "cf0a4a13-a036-427d-bc67-982e094ce95f_Lionel Ankunding") == true);
+    try std.testing.expect(strcmp("cf0a4a13-a036-427d-bc67-<82e094ce95f_Lionel Ankunding", "cf0a4a13-a036-427d-bc67-982e094ce95f_Lionel Ankunding") == false);
 }

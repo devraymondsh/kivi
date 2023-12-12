@@ -1,26 +1,20 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const maxU32 = std.math.maxInt(u32);
-const maxU64 = std.math.maxInt(u64);
-const is_windows: bool = builtin.os.tag == .windows;
-var empty_freelist = FreeListNode8byte{ .len = 0, .next = false, .next_idx = maxU32 };
-
-const FreeListNode8byte = packed struct {
+const FreeListNode = packed struct {
     len: u31,
     next: bool,
     next_idx: u32,
 };
-// TODO: Impl
-const FreeListNode16byte = packed struct {
-    len: u63,
-    next: bool,
-    next_idx: u64,
-};
+
+const maxU32 = std.math.maxInt(u32);
+const maxU64 = std.math.maxInt(u64);
+const is_windows: bool = builtin.os.tag == .windows;
+var empty_freelist = FreeListNode{ .len = 0, .next = false, .next_idx = maxU32 };
 
 cursor: usize,
 length: usize,
-freelist: *FreeListNode8byte,
+freelist: *FreeListNode,
 mem: []align(std.mem.page_size) u8,
 
 const Mmap = @This();
@@ -51,7 +45,11 @@ pub fn init(total_size: usize) !Mmap {
     return Mmap{ .mem = mem, .cursor = 0, .length = size, .freelist = &empty_freelist };
 }
 
-pub fn reserve(self: *Mmap, size: usize) ![]u8 {
+fn alloc(ctx: *anyopaque, size: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    _ = ptr_align;
+    _ = ret_addr;
+    const self: *Mmap = @ptrCast(@alignCast(ctx));
+
     if (self.freelist.len != 0) {
         if (self.freelist.len >= size) {
             var freelist_slice: []u8 = undefined;
@@ -68,7 +66,7 @@ pub fn reserve(self: *Mmap, size: usize) ![]u8 {
                 self.freelist = &empty_freelist;
             }
 
-            return freelist_slice[0..size];
+            return freelist_slice[0..size].ptr;
         }
     }
 
@@ -80,19 +78,22 @@ pub fn reserve(self: *Mmap, size: usize) ![]u8 {
 
     if (ending_pos > self.length) {
         unlikely();
-        return error.OutOfMemory;
+        return null;
     }
 
     self.cursor = ending_pos;
 
-    return self.mem[starting_pos .. starting_pos + size];
+    return self.mem[starting_pos .. starting_pos + size].ptr;
 }
 
-pub fn free(self: *Mmap, data: []u8) void {
-    const freelist = @as(*FreeListNode8byte, @alignCast(@ptrCast(data.ptr)));
+fn free(ctx: *anyopaque, slice: []u8, buf_align: u8, return_address: usize) void {
+    _ = buf_align;
+    _ = return_address;
+    const self: *Mmap = @ptrCast(@alignCast(ctx));
+    const freelist = @as(*FreeListNode, @alignCast(@ptrCast(slice.ptr)));
 
-    if (data.len > 8) {
-        freelist.*.len = @intCast(std.mem.alignForward(usize, data.len, 8));
+    if (slice.len > 8) {
+        freelist.*.len = @intCast(std.mem.alignForward(usize, slice.len, 8));
     } else {
         freelist.*.len = 8;
     }
@@ -106,6 +107,32 @@ pub fn free(self: *Mmap, data: []u8) void {
     }
 
     self.freelist = freelist;
+}
+
+fn resize(
+    ctx: *anyopaque,
+    buf_unaligned: []u8,
+    buf_align: u8,
+    new_size: usize,
+    return_address: usize,
+) bool {
+    _ = ctx;
+    _ = buf_unaligned;
+    _ = buf_align;
+    _ = new_size;
+    _ = return_address;
+    return false;
+}
+
+pub fn allocator(self: *Mmap) std.mem.Allocator {
+    return .{
+        .ptr = self,
+        .vtable = &.{
+            .alloc = alloc,
+            .resize = resize,
+            .free = free,
+        },
+    };
 }
 
 pub fn deinit(self: *Mmap) void {

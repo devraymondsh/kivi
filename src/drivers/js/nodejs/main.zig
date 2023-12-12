@@ -102,7 +102,7 @@ pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info
     const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    const kivi_result: usize = arg_to_kivi(env, args[0]).?.init_default_allocator(&Kivi.Config{}) catch 0;
+    const kivi_result: usize = arg_to_kivi(env, args[0]).?.init(&Kivi.Config{}) catch 0;
     if (kivi_result == @sizeOf(Kivi)) {
         return new_unint(env, @intCast(kivi_result));
     }
@@ -164,7 +164,6 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return new_unint(env, 0);
     }
     const value_buf = self.reserve(key_buf, value_len) catch {
-        self.undo_reserve(key_buf);
         return new_unint(env, 0);
     };
     const written_value_len = string_to_buffer(env, args[2], value_buf);

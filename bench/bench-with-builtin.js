@@ -29,11 +29,9 @@ const numberWithCommas = (x) =>
   x.toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",");
 
 const benchmarkDeletion = (data, o) => {
-  let count = 0;
   const startingTime = performance.now();
   for (const item of data) {
     assert(`${o.name} deletion`, o.del(item.key), item.value);
-    count++;
   }
   return performance.now() - startingTime;
 };
