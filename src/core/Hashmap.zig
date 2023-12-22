@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const strcmp = @import("Strcmp.zig").strcmp;
+const memsimd = @import("memsimd");
 
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
@@ -12,8 +12,7 @@ pub const StringContext = struct {
     }
     pub fn eql(self: @This(), a: []const u8, b: []const u8) bool {
         _ = self;
-        const x = strcmp(a, b);
-        return x;
+        return memsimd.avx.eql(u8, a, b);
     }
 };
 pub fn StringHashMap(comptime V: type) type {

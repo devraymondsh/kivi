@@ -1,0 +1,12 @@
+.{
+    .name = "kivi",
+    .version = "0.0.0",
+    .minimum_zig_version = "0.11.0",
+    .paths = .{ "src", "build.zig", "build.zig.zon" },
+    .dependencies = .{
+        .memsimd = .{
+            .url = "https://github.com/devraymondsh/memsimd/archive/refs/tags/v0.1.0.tar.gz",
+            .hash = "12208ce7ad284db242c305056b813b01213b74527310cc4c55523e09ff8db4ba5f9d",
+        },
+    },
+}

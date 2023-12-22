@@ -1,7 +1,6 @@
 const std = @import("std");
 const MMap = @import("Mmap.zig");
 const StringHashMap = @import("Hashmap.zig").StringHashMap;
-const strcmp = @import("Strcmp.zig").strcmp;
 
 pub const Config = extern struct {
     maximum_elements: usize = 1_200_000,

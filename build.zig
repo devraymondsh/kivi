@@ -11,11 +11,16 @@ const Libs = struct {
             strip = true;
         }
 
+        const memsimd = b.dependency("memsimd", .{
+            .target = target,
+            .optimize = optimize_mode,
+        });
         const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
         shared.strip = strip;
         shared.force_pic = true;
         shared.single_threaded = true;
         shared.linker_allow_shlib_undefined = true;
+        shared.addModule("memsimd", memsimd.module("memsimd"));
         if (target_info.target.os.tag != .macos) {
             shared.want_lto = true;
         }
@@ -27,6 +32,7 @@ const Libs = struct {
             static.?.force_pic = true;
             static.?.single_threaded = true;
             static.?.linker_allow_shlib_undefined = true;
+            static.?.addModule("memsimd", memsimd.module("memsimd"));
             if (target_info.target.os.tag != .macos) {
                 static.?.want_lto = true;
             }
@@ -41,6 +47,12 @@ const Targets = struct {
     tests: *std.Build.Step.Compile,
     fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, target_info: std.zig.system.NativeTargetInfo, optimize_mode: std.builtin.Mode, with_static: bool) Targets {
         const tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
+
+        const memsimd = b.dependency("memsimd", .{
+            .target = target,
+            .optimize = optimize_mode,
+        });
+        tests.addModule("memsimd", memsimd.module("memsimd"));
 
         return .{ .libs = Libs.create(b, name, path, target, target_info, optimize_mode, with_static), .tests = tests };
     }
@@ -105,12 +117,18 @@ pub fn build(b: *std.Build) !void {
     core_build_step.dependOn(&b.addInstallArtifact(core_targets.libs.shared, .{}).step);
 
     // Defines modules
+    const memsimd = b.dependency("memsimd", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const kivi_mod = b.createModule(.{
         .source_file = .{ .path = "src/core/Kivi.zig" },
     });
     const core_mod = b.createModule(.{
         .source_file = .{ .path = "src/core/main.zig" },
     });
+    try kivi_mod.dependencies.put("memsimd", memsimd.module("memsimd"));
+    try core_mod.dependencies.put("memsimd", memsimd.module("memsimd"));
 
     // Compiles the JS driver
     const drivers_build_step = b.step("drivers", "Builds all drivers");
