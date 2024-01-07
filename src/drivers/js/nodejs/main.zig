@@ -163,13 +163,17 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     if (value_len == 0) {
         return new_unint(env, 0);
     }
-    const value_buf = self.reserve(key_buf, value_len) catch {
+    const value_buf = self.reserve_value(value_len) catch {
         return new_unint(env, 0);
     };
     const written_value_len = string_to_buffer(env, args[2], value_buf);
     if (written_value_len == 0) {
         return new_unint(env, 0);
     }
+
+    self.putEntry(key_buf, value_buf) catch {
+        return new_unint(env, 0);
+    };
 
     return new_unint(env, @intCast(value_len));
 }

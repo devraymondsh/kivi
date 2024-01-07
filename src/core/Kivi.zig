@@ -18,7 +18,7 @@ mem_allocator: std.mem.Allocator,
 const Kivi = @This();
 
 inline fn stringcpy(dest: []u8, src: []const u8) void {
-    @memcpy(dest.ptr[0..src.len], src.ptr[0..src.len]);
+    @memcpy(dest[0..src.len], src);
 }
 
 pub fn init(self: *Kivi, config: *const Config) !usize {
@@ -35,18 +35,19 @@ pub fn init(self: *Kivi, config: *const Config) !usize {
 pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
     return self.mem_allocator.alloc(u8, size);
 }
-pub fn reserve(self: *Kivi, key: []u8, size: usize) ![]u8 {
-    const value = try self.mem_allocator.alloc(u8, size);
-    try self.entries.put(self.mem_allocator, key, Entry{ .key = key, .value = value });
-
-    return value;
+pub fn reserve_value(self: *Kivi, size: usize) ![]u8 {
+    return try self.mem_allocator.alloc(u8, size);
+}
+pub fn putEntry(self: *Kivi, key: []u8, value: []u8) !void {
+    return self.entries.put(self.mem_allocator, key, Entry{ .key = key, .value = value });
 }
 pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_slice = try self.reserve_key(key.len);
-    const value_slice = try self.reserve(key_slice, value.len);
-
+    const value_slice = try self.reserve_value(value.len);
     stringcpy(key_slice, key);
     stringcpy(value_slice, value);
+
+    try self.putEntry(key_slice, value_slice);
 
     return value_slice.len;
 }
