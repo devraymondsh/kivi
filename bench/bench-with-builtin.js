@@ -4,9 +4,14 @@ import json from "big-json";
 import { fileURLToPath } from "node:url";
 import { Kivi } from "../src/drivers/js/index.js";
 import { isBun } from "../src/drivers/js/runtime.js";
+import { generateFakeData } from "./faker/generate.js";
 
 const repeatBenchmark = 2;
 const fakeDataJsonFile = "faker/data/data.json";
+const dataJsonPath = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  fakeDataJsonFile
+);
 
 const assert = (name, left, right) => {
   if (left !== right) {
@@ -116,15 +121,11 @@ const logRatio = () => {
 };
 
 let data;
-const dataJsonPath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  fakeDataJsonFile
-);
+if (!fs.existsSync(dataJsonPath)) {
+  await generateFakeData();
+}
 console.log("Loading the data. Please be patient...");
 if (!isBun()) {
-  if (!fs.existsSync(dataJsonPath)) {
-    throw new Error(`Failed to read the '${fakeDataJsonFile}' file.`);
-  }
   const readStream = fs.createReadStream(dataJsonPath);
   const parseStream = json.createParseStream();
   readStream.pipe(parseStream);

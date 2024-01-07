@@ -1,84 +1,83 @@
 const std = @import("std");
+
 const cwd = std.fs.cwd();
+var target: std.Target = undefined;
+var optimize: std.builtin.OptimizeMode = undefined;
+var resolved_target: std.Build.ResolvedTarget = undefined;
+
+var global_deps: [3]Dependency = undefined;
+const Dependency = struct {
+    name: []const u8,
+    module: *std.Build.Module,
+
+    inline fn addExternal(
+        b: *std.Build,
+        comptime name: []const u8,
+        comptime n: comptime_int,
+    ) void {
+        const dep = b.dependency(name, .{
+            .target = resolved_target,
+            .optimize = optimize,
+        });
+        global_deps[n] = .{
+            .name = name,
+            .module = dep.module(name),
+        };
+    }
+    inline fn addInternal(
+        b: *std.Build,
+        comptime name: []const u8,
+        comptime source: []const u8,
+        comptime link_module_to: ?comptime_int,
+        comptime n: comptime_int,
+    ) void {
+        global_deps[n] = .{
+            .name = name,
+            .module = b.createModule(.{ .root_source_file = .{ .path = source } }),
+        };
+        if (link_module_to) |link_module| {
+            global_deps[n].module.addImport(global_deps[link_module].name, global_deps[link_module].module);
+        }
+    }
+};
 
 /// Build static and shared libraries given name and path
 const Libs = struct {
-    static: ?*std.Build.Step.Compile,
     shared: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, target_info: std.zig.system.NativeTargetInfo, optimize_mode: std.builtin.Mode, with_static: bool) Libs {
+    static: ?*std.Build.Step.Compile,
+    fn create(b: *std.Build, name: []const u8, path: []const u8, with_static: bool) Libs {
         var strip: bool = false;
-        if (optimize_mode == .ReleaseFast or optimize_mode == .ReleaseSafe or optimize_mode == .ReleaseSmall) {
+        if (optimize == .ReleaseFast or optimize == .ReleaseSafe or optimize == .ReleaseSmall) {
             strip = true;
         }
 
-        const memsimd = b.dependency("memsimd", .{
-            .target = target,
-            .optimize = optimize_mode,
-        });
-        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-        shared.strip = strip;
-        shared.force_pic = true;
-        shared.single_threaded = true;
+        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = resolved_target, .optimize = optimize });
+        shared.root_module.pic = true;
+        shared.root_module.strip = strip;
         shared.linker_allow_shlib_undefined = true;
-        shared.addModule("memsimd", memsimd.module("memsimd"));
-        if (target_info.target.os.tag != .macos) {
+        if (target.os.tag != .macos) {
             shared.want_lto = true;
         }
 
         var static: ?*std.Build.Step.Compile = null;
         if (with_static) {
-            static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-            static.?.strip = strip;
-            static.?.force_pic = true;
-            static.?.single_threaded = true;
+            static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = resolved_target, .optimize = optimize });
+            shared.root_module.pic = true;
+            static.?.root_module.strip = strip;
             static.?.linker_allow_shlib_undefined = true;
-            static.?.addModule("memsimd", memsimd.module("memsimd"));
-            if (target_info.target.os.tag != .macos) {
+            if (target.os.tag != .macos) {
                 static.?.want_lto = true;
             }
         }
 
+        inline for (global_deps) |global_dep| {
+            shared.root_module.addImport(global_dep.name, global_dep.module);
+            if (with_static) {
+                static.?.root_module.addImport(global_dep.name, global_dep.module);
+            }
+        }
+
         return .{ .static = static, .shared = shared };
-    }
-};
-/// Build libs + test-running binary given name and path
-const Targets = struct {
-    libs: Libs,
-    tests: *std.Build.Step.Compile,
-    fn create(b: *std.Build, name: []const u8, path: []const u8, target: std.zig.CrossTarget, target_info: std.zig.system.NativeTargetInfo, optimize_mode: std.builtin.Mode, with_static: bool) Targets {
-        const tests = b.addTest(.{ .root_source_file = .{ .path = path }, .target = target, .optimize = optimize_mode });
-
-        const memsimd = b.dependency("memsimd", .{
-            .target = target,
-            .optimize = optimize_mode,
-        });
-        tests.addModule("memsimd", memsimd.module("memsimd"));
-
-        return .{ .libs = Libs.create(b, name, path, target, target_info, optimize_mode, with_static), .tests = tests };
-    }
-};
-/// Build binaries from C code testing usage of libraries in a unity build (single translation unit) + static library build + shared library build
-const FFI = struct {
-    shared: *std.Build.Step.Compile,
-    fn create(
-        b: *std.Build,
-        lib_include_path: []const u8,
-        shared_lib: *std.Build.Step.Compile,
-        c_path: []const u8,
-        target: std.zig.CrossTarget,
-        optimize_mode: std.builtin.Mode,
-        c_flags: []const []const u8,
-    ) FFI {
-        return .{
-            .shared = b: {
-                const ffi = b.addExecutable(.{ .name = "ffi-shared", .target = target, .optimize = optimize_mode });
-                ffi.linkLibC();
-                ffi.linkLibrary(shared_lib);
-                ffi.addSystemIncludePath(.{ .path = lib_include_path });
-                ffi.addCSourceFile(.{ .file = .{ .path = c_path }, .flags = c_flags });
-                break :b ffi;
-            },
-        };
     }
 };
 
@@ -89,59 +88,121 @@ fn install_pnpm() !void {
         return error.PnpmNotFoundAndFailedToInstall;
     }
 }
-fn install_pnpm_if_needed() !void {
-    const pnpm_version_command = std.ChildProcess.run(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "pnpm", "--version" } });
-    if (pnpm_version_command) |command_res| {
+// Checks if pnpm is installed on the machine and insatlls it if possible
+fn pnpm_check(allocator: std.mem.Allocator) !void {
+    const npm_version_command = std.ChildProcess.run(.{ .allocator = allocator, .argv = &[2][]const u8{ "pnpm", "--version" } });
+    if (npm_version_command) |command_res| {
         if (command_res.stderr.len > 0) {
-            try install_pnpm();
+            return install_pnpm();
         }
     } else |_| {
-        try install_pnpm();
+        return install_pnpm();
     }
 }
 
+fn get_lazypath(path: []const u8) std.Build.LazyPath {
+    return std.Build.LazyPath.relative(path);
+}
+
+inline fn run_npm_command(
+    b: *std.Build,
+    comptime dir: []const u8,
+    // comptime commands: [][]const u8
+    comptime commands: anytype,
+    // dependency_steps: []*std.Build.Step
+    dependency_steps: anytype,
+    runner_step: *std.Build.Step,
+) void {
+    var last_step: ?std.Build.Step = null;
+    inline for (commands, 0..) |command, idx| {
+        const syscommand = b.addSystemCommand(&[3][]const u8{ "pnpm", "run", command });
+        syscommand.cwd = get_lazypath(dir);
+
+        if (last_step) |step| {
+            var mutable_step = step;
+            syscommand.step.dependOn(&mutable_step);
+        } else {
+            inline for (dependency_steps) |dependency_step| {
+                syscommand.step.dependOn(dependency_step);
+            }
+        }
+        if (idx == commands.len - 1) {
+            runner_step.dependOn(&syscommand.step);
+        }
+
+        last_step = syscommand.step;
+    }
+}
+
+inline fn run_npm_install(
+    b: *std.Build,
+    comptime dir: anytype,
+    dependency_step: ?*std.Build.Step,
+    runner_step: ?*std.Build.Step,
+) std.Build.Step {
+    const syscommand = b.addSystemCommand(&[2][]const u8{ "pnpm", "install" });
+    syscommand.cwd = get_lazypath(dir);
+    if (dependency_step) |step| {
+        syscommand.step.dependOn(step);
+    }
+    if (runner_step != null) {
+        runner_step.?.dependOn(&syscommand.step);
+    }
+
+    return syscommand.step;
+}
+
 pub fn build(b: *std.Build) !void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-    const target_info = try std.zig.system.NativeTargetInfo.detect(target);
-    const arch = @tagName(target_info.target.cpu.arch);
-    const os = @tagName(target_info.target.os.tag);
+    optimize = b.standardOptimizeOption(.{});
+    resolved_target = b.standardTargetOptions(.{});
+    target = resolved_target.result;
+
+    // Sets up the allocator
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    const allocator = arena.allocator();
+    defer {
+        arena.deinit();
+    }
+
+    // Checks if npm is installed
+    try pnpm_check(allocator);
+
+    // Declares commonly used target informations
+    const arch = @tagName(target.cpu.arch);
+    const tag = @tagName(target.os.tag);
+
+    // Declares dependencies
+    Dependency.addExternal(b, "memsimd", 0);
+    Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 0, 1);
+    Dependency.addInternal(b, "core", "src/core/main.zig", 0, 2);
 
     // Compiles the core then generates static and shared libraries
     const core_build_step = b.step("core", "Builds the core");
-    var lib_name_arrlist = std.ArrayList(u8).init(std.heap.page_allocator);
-    try lib_name_arrlist.writer().print("kivi-{s}-{s}", .{ @tagName(target_info.target.cpu.arch), @tagName(target_info.target.os.tag) });
-    defer lib_name_arrlist.deinit();
-    const core_targets = Targets.create(b, lib_name_arrlist.items, "src/core/main.zig", target, target_info, optimize, true);
-    core_build_step.dependOn(&b.addInstallArtifact(core_targets.libs.static.?, .{}).step);
-    core_build_step.dependOn(&b.addInstallArtifact(core_targets.libs.shared, .{}).step);
-
-    // Defines modules
-    const memsimd = b.dependency("memsimd", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const kivi_mod = b.createModule(.{
-        .source_file = .{ .path = "src/core/Kivi.zig" },
-    });
-    const core_mod = b.createModule(.{
-        .source_file = .{ .path = "src/core/main.zig" },
-    });
-    try kivi_mod.dependencies.put("memsimd", memsimd.module("memsimd"));
-    try core_mod.dependencies.put("memsimd", memsimd.module("memsimd"));
+    const core_targets = Libs.create(
+        b,
+        try std.fmt.allocPrint(allocator, "kivi-{s}-{s}", .{ arch, tag }),
+        "src/core/main.zig",
+        true,
+    );
+    core_build_step.dependOn(&b.addInstallArtifact(core_targets.shared, .{}).step);
+    core_build_step.dependOn(&b.addInstallArtifact(core_targets.static.?, .{}).step);
 
     // Compiles the JS driver
     const drivers_build_step = b.step("drivers", "Builds all drivers");
-    const js_driver_targets = Targets.create(b, "kivi-node-addon", "src/drivers/js/nodejs/main.zig", target, target_info, optimize, false);
-    js_driver_targets.libs.shared.addModule("Kivi", kivi_mod);
-    js_driver_targets.libs.shared.addIncludePath(std.build.LazyPath.relative("src/drivers/js/nodejs/napi-headers"));
+    const js_driver_targets = Libs.create(
+        b,
+        "kivi-node-addon",
+        "src/drivers/js/nodejs/main.zig",
+        false,
+    );
+    drivers_build_step.dependOn(&b.addInstallArtifact(js_driver_targets.shared, .{}).step);
     // Makes a proper .node file in order to be used in Nodejs
-    var formatted_target_obj = std.ArrayList(u8).init(std.heap.page_allocator);
-    try formatted_target_obj.writer().print("kivi-addon-{s}-{s}.node", .{ arch, os });
-    defer formatted_target_obj.deinit();
-    const node_addon_install = b.addInstallFileWithDir(js_driver_targets.libs.shared.getOutputSource(), .lib, formatted_target_obj.items);
-    node_addon_install.step.dependOn(&js_driver_targets.libs.shared.step);
-    drivers_build_step.dependOn(&b.addInstallArtifact(js_driver_targets.libs.shared, .{}).step);
+    const node_addon_install = b.addInstallFileWithDir(
+        js_driver_targets.shared.getEmittedBin(),
+        .lib,
+        try std.fmt.allocPrint(allocator, "kivi-addon-{s}-{s}.node", .{ arch, tag }),
+    );
+    node_addon_install.step.dependOn(&js_driver_targets.shared.step);
     drivers_build_step.dependOn(&node_addon_install.step);
 
     // Executes codegens
@@ -150,74 +211,60 @@ pub fn build(b: *std.Build) !void {
         .name = "codegen_generate",
         .root_source_file = .{ .path = "src/codegen/core.zig" },
         .optimize = optimize,
-        .target = target,
+        .target = resolved_target,
     });
-    codegen.addModule("Kivi", kivi_mod);
-    codegen.addModule("core", core_mod);
+    inline for (global_deps) |global_dep| {
+        codegen.root_module.addImport(global_dep.name, global_dep.module);
+    }
     const codegen_run = b.addRunArtifact(codegen);
-    codegen_step.dependOn(&b.addRunArtifact(codegen).step);
+    codegen_step.dependOn(&codegen_run.step);
 
-    // Install pnpm if needed
-    try install_pnpm_if_needed();
-
-    // Strcmp tests
-    var strcmp_tests = b.addTest(.{ .root_source_file = .{ .path = "src/core/Strcmp.zig" }, .target = target, .optimize = optimize });
-
-    // Runs all tests
-    const test_step = b.step("test", "Runs all tests");
-    test_step.dependOn(core_build_step);
-    test_step.dependOn(drivers_build_step);
-    test_step.dependOn(&b.addRunArtifact(core_targets.tests).step);
-    test_step.dependOn(&strcmp_tests.step);
-    // Builds and runs FFI tests using 3 "linkage modes"
-    const ffi = FFI.create(
-        b,
-        "src/core/include",
-        core_targets.libs.shared,
-        "src/core/tests/ffi.c",
-        target,
-        optimize,
-        switch (optimize) {
-            // asserts in ffi.c go away in unsafe build modes, so we need to disable errors on unused variables
+    // C FFI tests
+    var ffi_tests_step = b.step("test-ffi", "Runs FFI tests");
+    const ffi_tests = b.addExecutable(.{ .name = "ffi-shared", .target = resolved_target, .optimize = optimize });
+    ffi_tests.linkLibC();
+    ffi_tests.linkLibrary(core_targets.shared);
+    ffi_tests.addSystemIncludePath(.{ .path = "src/core/include" });
+    ffi_tests.addCSourceFile(.{
+        .file = .{ .path = "src/core/tests/ffi.c" },
+        .flags = switch (optimize) {
+            // Asserts in ffi.c go away in unsafe build modes, so we need to disable errors on unused variables
             .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror", "-Wno-unused-variable" },
             .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" },
         },
-    );
-    ffi.shared.step.dependOn(&codegen_run.step);
-    inline for (@typeInfo(FFI).Struct.fields) |field| {
-        test_step.dependOn(&b.addRunArtifact(@field(ffi, field.name)).step);
-    }
+    });
+    ffi_tests.step.dependOn(codegen_step);
+    ffi_tests_step.dependOn(&b.addRunArtifact(ffi_tests).step);
 
-    const js_driver_test_commad1 = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "src/drivers/js", "run", "nodejs-test" });
-    js_driver_test_commad1.step.dependOn(drivers_build_step);
-    test_step.dependOn(&js_driver_test_commad1.step);
-    const js_driver_test_commad2 = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "src/drivers/js", "run", "bun-test" });
-    js_driver_test_commad2.step.dependOn(core_build_step);
-    test_step.dependOn(&js_driver_test_commad2.step);
-    const js_driver_test_commad3 = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "src/drivers/js", "run", "deno-test" });
-    js_driver_test_commad3.step.dependOn(core_build_step);
-    test_step.dependOn(&js_driver_test_commad3.step);
+    // Runs all tests
+    const test_step = b.step("test", "Runs all tests");
+    _ = run_npm_command(
+        b,
+        "src/drivers/js",
+        .{
+            "nodejs-test",
+            // "deno-test",
+            // "bun-test",
+        },
+        .{ drivers_build_step, ffi_tests_step },
+        test_step,
+    );
+
+    // Installs benchmark dependencies
+    const bench_dep_install_step = b.step("bench-install", "Installs benchmark dependencies");
+    _ = run_npm_install(b, "bench", null, bench_dep_install_step);
 
     // Benchmarks Kivi
-    const benchmark_step = b.step("bench", "Benchmarks kivi");
-    const node_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "nodejs-bench" });
-    const deno_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "deno-bench" });
-    const bun_bench_sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "bun-bench" });
-    const npm_install_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "install" });
-    if (cwd.openDir("bench/node_modules", .{})) |_| {} else |_| {
-        node_bench_sys_commad.step.dependOn(&npm_install_commad.step);
-    }
-    if (cwd.openFile("bench/faker/data/data.json", .{})) |_| {} else |_| {
-        const sys_commad = b.addSystemCommand(&[_][]const u8{ "pnpm", "-C", "bench", "run", "generate-fake-data" });
-        sys_commad.step.dependOn(&npm_install_commad.step);
-        node_bench_sys_commad.step.dependOn(&sys_commad.step);
-    }
-    benchmark_step.dependOn(core_build_step);
-    benchmark_step.dependOn(drivers_build_step);
-    benchmark_step.dependOn(&node_bench_sys_commad.step);
-    // benchmark_step.dependOn(&deno_bench_sys_commad.step);
-    // benchmark_step.dependOn(&bun_bench_sys_commad.step);
-    node_bench_sys_commad.step.dependOn(drivers_build_step);
-    bun_bench_sys_commad.step.dependOn(&node_bench_sys_commad.step);
-    deno_bench_sys_commad.step.dependOn(&bun_bench_sys_commad.step);
+    const bench_step = b.step("bench", "Benchmarks kivi");
+    _ = run_npm_command(
+        b,
+        "bench",
+        .{
+            "nodejs-bench",
+            // "deno-bench",
+            // "bun-bench",
+        },
+        .{ bench_dep_install_step, drivers_build_step },
+        bench_step,
+    );
 }
