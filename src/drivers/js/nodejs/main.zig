@@ -118,28 +118,52 @@ pub export fn kivi_deinit_js(env: ntypes.napi_env, info: ntypes.napi_callback_in
 
     return new_undefined(env);
 }
-pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
-    var args_count: usize = 2;
-    var args: [2]ntypes.napi_value = undefined;
-    const argc: usize = get_args(env, info, &args_count, &args);
-    if (argc == 0) return new_undefined(env);
 
-    var self = arg_to_kivi(env, args[0]).?;
-
+fn fetch_single(self: *Kivi, env: ntypes.napi_env, n_keybuf: ntypes.napi_value) ![]u8 {
     var should_be_freed = false;
-    const key = allocate_temp_key(env, args[1], &should_be_freed) catch return new_null(env);
+    const key = try allocate_temp_key(env, n_keybuf, &should_be_freed);
     defer {
         if (should_be_freed) {
             allocator.free(key);
         }
     }
 
-    const value = self.get_slice(key) catch return new_null(env);
-    if (value.len == 0) {
+    return self.get_slice(key);
+}
+pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
+    var args_count: usize = 2;
+    var args: [2]ntypes.napi_value = undefined;
+    const argc: usize = get_args(env, info, &args_count, &args);
+    if (argc == 0) return new_undefined(env);
+
+    const self = arg_to_kivi(env, args[0]).?;
+    const value = fetch_single(self, env, args[1]) catch {
         return new_null(env);
-    }
+    };
 
     return buffer_to_string(env, value);
+}
+
+fn set_single(self: *Kivi, env: ntypes.napi_env, n_keybuf: ntypes.napi_value, n_valbuf: ntypes.napi_value) !usize {
+    const key_len: usize = get_string_length(env, n_keybuf);
+    if (key_len == 0) {
+        return error.InvalidLength;
+    }
+
+    const key_buf = try self.reserve_key(key_len);
+    _ = string_to_buffer(env, n_keybuf, key_buf);
+
+    const value_len: usize = get_string_length(env, n_valbuf);
+    if (value_len == 0) {
+        return error.InvalidLength;
+    }
+
+    const value_buf = try self.reserve_value(value_len);
+    _ = string_to_buffer(env, n_valbuf, value_buf);
+
+    try self.putEntry(key_buf, value_buf);
+
+    return value_len;
 }
 pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 3;
@@ -147,35 +171,22 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var self = arg_to_kivi(env, args[0]).?;
-
-    const key_len: usize = get_string_length(env, args[1]);
-    if (key_len == 0) {
-        return new_unint(env, 0);
-    }
-    const key_buf = self.reserve_key(key_len) catch return new_unint(env, 0);
-    const written_key_len = string_to_buffer(env, args[1], key_buf);
-    if (written_key_len == 0) {
-        return new_unint(env, 0);
-    }
-
-    const value_len: usize = get_string_length(env, args[2]);
-    if (value_len == 0) {
-        return new_unint(env, 0);
-    }
-    const value_buf = self.reserve_value(value_len) catch {
-        return new_unint(env, 0);
-    };
-    const written_value_len = string_to_buffer(env, args[2], value_buf);
-    if (written_value_len == 0) {
-        return new_unint(env, 0);
-    }
-
-    self.putEntry(key_buf, value_buf) catch {
-        return new_unint(env, 0);
-    };
+    const self = arg_to_kivi(env, args[0]).?;
+    const value_len = set_single(self, env, args[1], args[2]) catch 0;
 
     return new_unint(env, @intCast(value_len));
+}
+
+fn del_single(self: *Kivi, env: ntypes.napi_env, n_keybuf: ntypes.napi_value) ![]u8 {
+    var should_be_freed = false;
+    const key = try allocate_temp_key(env, n_keybuf, &should_be_freed);
+    defer {
+        if (should_be_freed) {
+            allocator.free(key);
+        }
+    }
+
+    return try self.del_slice(key);
 }
 pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     var args_count: usize = 2;
@@ -183,20 +194,11 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     const argc: usize = get_args(env, info, &args_count, &args);
     if (argc == 0) return new_undefined(env);
 
-    var self = arg_to_kivi(env, args[0]).?;
-
-    var should_be_freed = false;
-    const key = allocate_temp_key(env, args[1], &should_be_freed) catch return new_null(env);
-    defer {
-        if (should_be_freed) {
-            allocator.free(key);
-        }
-    }
-
-    const value = self.del_slice(key) catch return new_null(env);
-    if (value.len == 0) {
+    const self = arg_to_kivi(env, args[0]).?;
+    const value = del_single(self, env, args[1]) catch {
         return new_null(env);
-    }
+    };
+
     const string = buffer_to_string(env, value);
 
     self.del_value(value);
