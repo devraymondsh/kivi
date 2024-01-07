@@ -41,7 +41,7 @@ export class Kivi {
   #InnerKivi;
 
   /**
-   * Returns the value of the given key
+   * Initializes Kivi
    * @param {{ forceUseRuntimeFFI: ?bool }} config
    */
   constructor(config) {
@@ -56,12 +56,16 @@ export class Kivi {
       throw new Error(`Failed to initialize a Kivi!`);
     }
   }
+  /**
+   * Releases the allocated memory and deinitializes Kivi.
+   * @returns {void}
+   */
   destroy() {
     this.#InnerKivi.destroy();
   }
 
   /**
-   * Returns the value of the given key
+   * Returns the value of the given key.
    * @param {string} key
    * @returns {(string|null)}
    */
@@ -69,10 +73,20 @@ export class Kivi {
     return this.#InnerKivi.get(key);
   }
   /**
-   * Sets a key to the given value
+   * Returns values of given keys.
+   * This function is noticeably faster when multiple data is given due to process in parallel.
+   * @param {string[]} keys
+   * @returns {(string|null)[]}
+   */
+  bulkGet(keys) {
+    return this.#InnerKivi.bulkGet(keys);
+  }
+
+  /**
+   * Sets a key to the given value.
    * @param {string} key
    * @param {string} value
-   * @returns {void}
+   * @returns {boolean}
    */
   set(key, value) {
     if (!this.#InnerKivi.set(key, value)) {
@@ -80,11 +94,47 @@ export class Kivi {
     }
   }
   /**
-   * Removes a key with its value
+   * Sets values to given keys.
+   * This function is noticeably faster when multiple data is given due to process in parallel.
+   * @param {{key: string, value: string}[]} data
+   * @returns {boolean[]}
+   */
+  bulkSet(data) {
+    return this.#InnerKivi.bulkSet(data);
+  }
+
+  /**
+   * Removes a key with its value.
    * @param {string} key
    * @returns {void}
    */
-  del(/** @type {string} */ key) {
+  del(key) {
     return this.#InnerKivi.del(key);
+  }
+  /**
+   * Removes a key with its value and returns the value.
+   * @param {string} key
+   * @returns {string}
+   */
+  fetchDel(key) {
+    return this.#InnerKivi.fetchDel(key);
+  }
+  /**
+   * Removes keys with their values and returns the values.
+   * This function is noticeably faster when multiple data is given due to process in parallel.
+   * @param {string[]} keys
+   * @returns {string[]}
+   */
+  bulkFetchDel(keys) {
+    return this.#InnerKivi.bulkFetchDel(keys);
+  }
+  /**
+   * Removes keys with their values.
+   * This function is noticeably faster when multiple data is given due to process in parallel.
+   * @param {string[]} keys
+   * @returns {void}
+   */
+  bulkDel(keys) {
+    return this.#InnerKivi.bulkDel(keys);
   }
 }
