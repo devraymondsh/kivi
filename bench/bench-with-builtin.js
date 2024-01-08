@@ -34,37 +34,30 @@ const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
 const benchmarkDeletion = (data, o) => {
   const startingTime = performance.now();
   for (const item of data) {
-    assert(`${o.name} deletion`, o.del(item.key), item.value);
+    assert(
+      `${o.name} deletion`,
+      o.del(Buffer.from(item.key, "utf8")).toString(),
+      Buffer.from(item.value, "utf8").toString()
+    );
   }
-  return performance.now() - startingTime;
-};
-const benchmarkBulkDeletion = (data, o) => {
-  const startingTime = performance.now();
-  o.bulkDel(dataKeys);
   return performance.now() - startingTime;
 };
 const benchmarkLookup = (data, o) => {
   const startingTime = performance.now();
   for (const item of data) {
-    assert(`${o.name} lookup`, o.get(item.key), item.value);
+    assert(
+      `${o.name} lookup`,
+      o.get(Buffer.from(item.key, "utf8")).toString(),
+      Buffer.from(item.value, "utf8").toString()
+    );
   }
-  return performance.now() - startingTime;
-};
-const benchmarkBulkLookup = (data, o) => {
-  const startingTime = performance.now();
-  o.bulkGet(dataKeys);
   return performance.now() - startingTime;
 };
 const benchmarkInsertion = (data, o) => {
   const startingTime = performance.now();
   for (const item of data) {
-    o.set(item.key, item.value);
+    o.set(Buffer.from(item.key, "utf8"), Buffer.from(item.value, "utf8"));
   }
-  return performance.now() - startingTime;
-};
-const benchmarkBulkInsertion = (data, o) => {
-  const startingTime = performance.now();
-  o.bulkSet(data);
   return performance.now() - startingTime;
 };
 
@@ -72,23 +65,15 @@ let averageLogResult = [];
 const wrapInHumanReadable = (value) => {
   return {
     totalLookupTime: roundToTwoDecimal(value.totalLookupTime) + " ms",
-    totalBulkLookupTime: roundToTwoDecimal(value.totalBulkLookupTime) + " ms",
     totalInsertionTime: roundToTwoDecimal(value.totalInsertionTime) + " ms",
-    totalBulkInsertionTime:
-      roundToTwoDecimal(value.totalBulkInsertionTime) + " ms",
     totalDeletionTime: roundToTwoDecimal(value.totalDeletionTime) + " ms",
-    totalBulkDeletionTime:
-      roundToTwoDecimal(value.totalBulkDeletionTime) + " ms",
   };
 };
 const formatLogResult = (value) => {
   return {
     totalLookupTime: value.lookupDuration,
-    totalBulkLookupTime: value.bulkLookupDuration,
     totalInsertionTime: value.insertionDuration,
-    totalBulkInsertionTime: value.bulkInsertionDuration,
     totalDeletionTime: value.deletionDuration,
-    totalBulkDeletionTime: value.bulkDeletionDuration,
   };
 };
 const logResults = (name, durationArr, averageArg) => {
@@ -101,11 +86,8 @@ const logResults = (name, durationArr, averageArg) => {
   averageLogResult.push({
     name,
     totalLookupTime: average.totalLookupTime,
-    totalBulkLookupTime: average.totalBulkLookupTime,
     totalInsertionTime: average.totalInsertionTime,
-    totalBulkInsertionTime: average.totalBulkInsertionTime,
     totalDeletionTime: average.totalDeletionTime,
-    totalBulkDeletionTime: average.totalBulkDeletionTime,
   });
 
   console.log(`\n${name}:`);
@@ -134,21 +116,6 @@ const logRatio = () => {
       roundToTwoDecimal(
         averageLogResult[1].totalDeletionTime /
           averageLogResult[0].totalDeletionTime
-      ) + "x",
-    bulkLookup:
-      roundToTwoDecimal(
-        averageLogResult[1].totalBulkLookupTime /
-          averageLogResult[0].totalBulkLookupTime
-      ) + "x",
-    bulkInsertion:
-      roundToTwoDecimal(
-        averageLogResult[1].totalBulkInsertionTime /
-          averageLogResult[0].totalBulkInsertionTime
-      ) + "x",
-    bulkDeletion:
-      roundToTwoDecimal(
-        averageLogResult[1].totalBulkDeletionTime /
-          averageLogResult[0].totalBulkDeletionTime
       ) + "x",
   });
 };
@@ -182,49 +149,20 @@ const builtinMapBenchmark = () => {
       name: "JsMap",
       map: new Map(),
       get: function (k) {
-        return this.map.get(k);
-      },
-      bulkGet: function (ks) {
-        const res = [];
-        for (const k of ks) {
-          res.push(this.map.get(k));
-        }
-        return res;
+        return this.map.get(k.toString());
       },
       set: function (k, v) {
-        return this.map.set(k, v);
-      },
-      bulkSet: function (data) {
-        const res = [];
-        for (const kv of data) {
-          res.push(this.map.set(kv.key, kv.value));
-        }
-        return res;
+        return this.map.set(k.toString(), v);
       },
       del: function (k) {
-        const v = this.map.get(k);
-        this.map.delete(k);
+        const v = this.map.get(k.toString());
+        this.map.delete(k.toString());
         return v;
-      },
-      bulkDel: function (ks) {
-        const res = [];
-        for (const k of ks) {
-          res.push(this.map.get(k));
-          this.map.delete(k);
-        }
-        return res;
       },
       destroy: function () {
         return this.map.clear();
       },
     };
-    const bulkInsertionDuration = benchmarkBulkInsertion(data, o);
-    const bulkLookupDuration = benchmarkBulkLookup(data, o);
-    const bulkDeletionDuration = benchmarkBulkDeletion(data, o);
-    o.destroy();
-
-    o.map = new Map();
-
     const insertionDuration = benchmarkInsertion(data, o);
     const lookupDuration = benchmarkLookup(data, o);
     const deletionDuration = benchmarkDeletion(data, o);
@@ -234,31 +172,18 @@ const builtinMapBenchmark = () => {
       insertionDuration,
       lookupDuration,
       deletionDuration,
-      bulkInsertionDuration,
-      bulkLookupDuration,
-      bulkDeletionDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
-        bulkInsertionDuration,
-        bulkInsertionDuration,
-        bulkLookupDuration,
-        bulkDeletionDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
-        bulkInsertionDuration:
-          (average.bulkInsertionDuration + bulkInsertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
-        bulkLookupDuration:
-          (average.bulkLookupDuration + bulkLookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
-        bulkDeletionDuration:
-          (average.bulkDeletionDuration + bulkDeletionDuration) / 2,
       };
     }
   }
@@ -278,32 +203,16 @@ const kiviBenchmark = () => {
       get: function (k) {
         return this.map.get(k);
       },
-      bulkGet: function (ks) {
-        return this.map.bulkGet(ks);
-      },
       set: function (k, v) {
         return this.map.set(k, v);
       },
-      bulkSet: function (data) {
-        return this.map.bulkSet(data);
-      },
       del: function (k) {
-        return this.map.fetchDel(k);
-      },
-      bulkDel: function (ks) {
-        return this.map.bulkFetchDel(ks);
+        return this.map.del(k);
       },
       destroy: function () {
         return this.map.destroy();
       },
     };
-    const bulkInsertionDuration = benchmarkBulkInsertion(data, o);
-    const bulkLookupDuration = benchmarkBulkLookup(data, o);
-    const bulkDeletionDuration = benchmarkBulkDeletion(data, o);
-    o.destroy();
-
-    o.map = new Kivi();
-
     const insertionDuration = benchmarkInsertion(data, o);
     const lookupDuration = benchmarkLookup(data, o);
     const deletionDuration = benchmarkDeletion(data, o);
@@ -313,30 +222,18 @@ const kiviBenchmark = () => {
       insertionDuration,
       lookupDuration,
       deletionDuration,
-      bulkInsertionDuration,
-      bulkLookupDuration,
-      bulkDeletionDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
-        bulkInsertionDuration,
-        bulkLookupDuration,
-        bulkDeletionDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
-        bulkInsertionDuration:
-          (average.bulkInsertionDuration + bulkInsertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
-        bulkLookupDuration:
-          (average.bulkLookupDuration + bulkLookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
-        bulkDeletionDuration:
-          (average.bulkDeletionDuration + bulkDeletionDuration) / 2,
       };
     }
   }

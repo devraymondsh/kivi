@@ -18,6 +18,9 @@ pub var napi_create_array_with_length: *const @TypeOf(c.napi_create_array_with_l
 pub var napi_set_element: *const @TypeOf(c.napi_set_element) = undefined;
 pub var napi_get_named_property: *const @TypeOf(c.napi_get_named_property) = undefined;
 pub var napi_get_boolean: *const @TypeOf(c.napi_get_boolean) = undefined;
+pub var napi_is_buffer: *const @TypeOf(c.napi_is_buffer) = undefined;
+pub var napi_is_arraybuffer: *const @TypeOf(c.napi_is_arraybuffer) = undefined;
+pub var napi_create_buffer_copy: *const @TypeOf(c.napi_create_buffer_copy) = undefined;
 
 const kernel32 = std.os.windows.kernel32;
 const is_windows = builtin.target.os.tag == .windows;
@@ -49,6 +52,9 @@ pub fn init_symbols() void {
         napi_set_element = load_sym(*const @TypeOf(c.napi_set_element), "napi_set_element");
         napi_get_named_property = load_sym(*const @TypeOf(c.napi_get_named_property), "napi_get_named_property");
         napi_get_boolean = load_sym(*const @TypeOf(c.napi_get_boolean), "napi_get_boolean");
+        napi_is_buffer = load_sym(*const @TypeOf(c.napi_is_buffer), "napi_is_buffer");
+        napi_is_arraybuffer = load_sym(*const @TypeOf(c.napi_is_arraybuffer), "napi_is_arraybuffer");
+        napi_create_buffer_copy = load_sym(*const @TypeOf(c.napi_create_buffer_copy), "napi_create_buffer_copy");
     } else {
         napi_create_string_utf8 = c.napi_create_string_utf8;
         napi_create_uint32 = c.napi_create_uint32;
@@ -64,7 +70,8 @@ pub fn init_symbols() void {
         napi_get_array_length = c.napi_get_array_length;
         napi_create_array_with_length = c.napi_create_array_with_length;
         napi_set_element = c.napi_set_element;
-        napi_get_named_property = c.napi_get_named_property;
-        napi_get_boolean = c.napi_get_boolean;
+        napi_is_buffer = c.napi_is_buffer;
+        napi_is_arraybuffer = c.napi_is_arraybuffer;
+        napi_create_buffer_copy = c.napi_create_buffer_copy;
     }
 }

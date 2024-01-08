@@ -51,10 +51,7 @@ export class Kivi {
       this.#InnerKivi = new NodeKivi();
     }
 
-    if (!this.#InnerKivi.init()) {
-      console.log(this.#InnerKivi.init());
-      throw new Error(`Failed to initialize a Kivi!`);
-    }
+    return this.#InnerKivi.init();
   }
   /**
    * Releases the allocated memory and deinitializes Kivi.
@@ -72,15 +69,6 @@ export class Kivi {
   get(key) {
     return this.#InnerKivi.get(key);
   }
-  /**
-   * Returns values of given keys.
-   * This function is noticeably faster when multiple data is given due to process in parallel.
-   * @param {string[]} keys
-   * @returns {(string|null)[]}
-   */
-  bulkGet(keys) {
-    return this.#InnerKivi.bulkGet(keys);
-  }
 
   /**
    * Sets a key to the given value.
@@ -89,18 +77,7 @@ export class Kivi {
    * @returns {boolean}
    */
   set(key, value) {
-    if (!this.#InnerKivi.set(key, value)) {
-      throw new Error("Failed to insert!");
-    }
-  }
-  /**
-   * Sets values to given keys.
-   * This function is noticeably faster when multiple data is given due to process in parallel.
-   * @param {{key: string, value: string}[]} data
-   * @returns {boolean[]}
-   */
-  bulkSet(data) {
-    return this.#InnerKivi.bulkSet(data);
+    return this.#InnerKivi.set(key, value);
   }
 
   /**
@@ -110,31 +87,5 @@ export class Kivi {
    */
   del(key) {
     return this.#InnerKivi.del(key);
-  }
-  /**
-   * Removes a key with its value and returns the value.
-   * @param {string} key
-   * @returns {string}
-   */
-  fetchDel(key) {
-    return this.#InnerKivi.fetchDel(key);
-  }
-  /**
-   * Removes keys with their values and returns the values.
-   * This function is noticeably faster when multiple data is given due to process in parallel.
-   * @param {string[]} keys
-   * @returns {string[]}
-   */
-  bulkFetchDel(keys) {
-    return this.#InnerKivi.bulkFetchDel(keys);
-  }
-  /**
-   * Removes keys with their values.
-   * This function is noticeably faster when multiple data is given due to process in parallel.
-   * @param {string[]} keys
-   * @returns {void}
-   */
-  bulkDel(keys) {
-    return this.#InnerKivi.bulkDel(keys);
   }
 }

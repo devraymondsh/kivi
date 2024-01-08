@@ -44,27 +44,10 @@ export class NodeKivi {
   get(key) {
     return addon.kivi_get(this.#buf, key);
   }
-  bulkGet(keys) {
-    return addon.kivi_bulk_get(this.#buf, keys);
-  }
-
   set(key, value) {
     return addon.kivi_set(this.#buf, key, value);
   }
-  bulkSet(data) {
-    return addon.kivi_bulk_set(this.#buf, data);
-  }
-
   del(key) {
     return addon.kivi_del(this.#buf, key);
-  }
-  fetchDel(key) {
-    return addon.kivi_fetch_del(this.#buf, key);
-  }
-  bulkFetchDel(keys) {
-    return addon.kivi_bulk_fetch_del(this.#buf, keys);
-  }
-  bulkDel(keys) {
-    return addon.kivi_bulk_del(this.#buf, keys);
   }
 }

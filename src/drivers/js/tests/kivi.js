@@ -2,50 +2,62 @@ import { Kivi } from "../index.js";
 
 const run = (config) => {
   const assert = (name, left, right) => {
-    if (JSON.stringify(left) !== JSON.stringify(right)) {
-      console.error("Left:", left);
-      console.error("Right:", right);
-      throw new Error(`Assertion '${name}' failed!`);
+    if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) {
+      if (left.toString("utf8") == right.toString("utf8")) {
+        return;
+      }
+    } else {
+      if (left == right) {
+        return;
+      }
     }
+
+    throw new Error(
+      `Assertion '${name}' failed! Left was '${left}' and right was '${right}'.`
+    );
   };
 
-  const c = new Kivi(config);
+  const k = new Kivi(config);
 
-  assert("Null-if-uninitialized", c.get("foo"), null);
-  c.set("foo", "bar");
-  assert("Assert-after-set", c.get("foo"), "bar");
-  assert("Value-when-delete", c.fetchDel("foo"), "bar");
-  assert("Value-after-delete", c.get("foo"), null);
+  assert("Null-if-uninitialized", k.get(Buffer.from("foo", "utf8")), null);
+
+  k.set(Buffer.from("foo", "utf8"), Buffer.from("bar", "utf8"));
 
   assert(
-    "Value-set-with-bulk",
-    c.bulkSet([
-      { key: "foo1", value: "bar1" },
-      { key: "foo2", value: "bar2" },
-      { key: "foo3", value: "bar3" },
-    ]),
-    [true, true, true]
+    "Assert-after-set",
+    Buffer.from(k.get(Buffer.from("foo", "utf8")), "utf8"),
+    Buffer.from("bar", "utf8")
   );
-  assert("Value-get-with-bulk", c.bulkGet(["foo", "foo1", "foo2", "foo3"]), [
-    null,
-    "bar1",
-    "bar2",
-    "bar3",
-  ]);
-  assert("Value-with-bulk", c.bulkFetchDel(["foo", "foo1", "foo2", "foo3"]), [
-    null,
-    "bar1",
-    "bar2",
-    "bar3",
-  ]);
-  assert("Value-get-with-bulk", c.bulkGet(["foo", "foo1", "foo2", "foo3"]), [
-    null,
-    null,
-    null,
-    null,
-  ]);
 
-  c.destroy();
+  assert(
+    "Value-when-delete",
+    k.del(Buffer.from("foo", "utf8")),
+    Buffer.from("bar", "utf8")
+  );
+
+  assert("Value-after-delete", k.get(Buffer.from("foo", "utf8")), null);
+
+  // Do it again to assert the freelist
+
+  assert("Null-if-uninitialized", k.get(Buffer.from("foo", "utf8")), null);
+
+  k.set(Buffer.from("foo", "utf8"), Buffer.from("bar", "utf8"));
+
+  assert(
+    "Assert-after-set",
+    k.get(Buffer.from("foo", "utf8")),
+    Buffer.from("bar", "utf8")
+  );
+
+  assert(
+    "Value-when-delete",
+    k.del(Buffer.from("foo", "utf8")),
+    Buffer.from("bar", "utf8")
+  );
+
+  assert("Value-after-delete", k.get(Buffer.from("foo", "utf8")), null);
+
+  k.destroy();
 };
 
 run({ forceUseRuntimeFFI: false });
