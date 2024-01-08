@@ -134,24 +134,6 @@ inline fn run_npm_command(
     }
 }
 
-inline fn run_npm_install(
-    b: *std.Build,
-    comptime dir: anytype,
-    dependency_step: ?*std.Build.Step,
-    runner_step: ?*std.Build.Step,
-) std.Build.Step {
-    const syscommand = b.addSystemCommand(&[2][]const u8{ "pnpm", "install" });
-    syscommand.cwd = get_lazypath(dir);
-    if (dependency_step) |step| {
-        syscommand.step.dependOn(step);
-    }
-    if (runner_step != null) {
-        runner_step.?.dependOn(&syscommand.step);
-    }
-
-    return syscommand.step;
-}
-
 pub fn build(b: *std.Build) !void {
     optimize = b.standardOptimizeOption(.{});
     resolved_target = b.standardTargetOptions(.{});
@@ -250,10 +232,6 @@ pub fn build(b: *std.Build) !void {
         test_step,
     );
 
-    // Installs benchmark dependencies
-    const bench_dep_install_step = b.step("bench-install", "Installs benchmark dependencies");
-    _ = run_npm_install(b, "bench", null, bench_dep_install_step);
-
     // Benchmarks Kivi
     const bench_step = b.step("bench", "Benchmarks kivi");
     _ = run_npm_command(
@@ -264,7 +242,7 @@ pub fn build(b: *std.Build) !void {
             // "deno-bench",
             // "bun-bench",
         },
-        .{ bench_dep_install_step, drivers_build_step },
+        .{drivers_build_step},
         bench_step,
     );
 }

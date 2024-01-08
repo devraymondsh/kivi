@@ -1,62 +1,36 @@
-import fs from "node:fs";
-import path from "node:path";
-import json from "big-json";
-import { fileURLToPath } from "node:url";
 import { Kivi } from "../src/drivers/js/index.js";
-import { isBun } from "../src/drivers/js/runtime.js";
 import { generateFakeData } from "./faker/generate.js";
 
 const repeatBenchmark = 2;
-const fakeDataJsonFile = "faker/data/data.json";
-const dataJsonPath = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  fakeDataJsonFile
-);
+const data = generateFakeData();
 
 const assert = (name, left, right) => {
-  if (left !== right) {
+  if (!left.equals(right)) {
     throw new Error(
-      `Assertion '${name}' failed! Left was '${left}' and right was '${right}'.`
+      `Assertion '${name}' failed! Left was '${left.toString()}' and right was '${right.toString()}'.`
     );
   }
-};
-const resolveOnEmit = (event) => {
-  return new Promise(function (resolve, reject) {
-    try {
-      event.on("data", (data) => resolve(data));
-    } catch (e) {
-      reject(e);
-    }
-  });
 };
 const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
 
-const benchmarkDeletion = (data, o) => {
+const benchmarkDeletion = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
-    assert(
-      `${o.name} deletion`,
-      o.del(Buffer.from(item.key, "utf8")).toString(),
-      Buffer.from(item.value, "utf8").toString()
-    );
+    assert(`${o.name} deletion`, o.del(item[keyidx]), item.value);
   }
   return performance.now() - startingTime;
 };
-const benchmarkLookup = (data, o) => {
+const benchmarkLookup = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
-    assert(
-      `${o.name} lookup`,
-      o.get(Buffer.from(item.key, "utf8")).toString(),
-      Buffer.from(item.value, "utf8").toString()
-    );
+    assert(`${o.name} deletion`, o.get(item[keyidx]), item.value);
   }
   return performance.now() - startingTime;
 };
-const benchmarkInsertion = (data, o) => {
+const benchmarkInsertion = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
-    o.set(Buffer.from(item.key, "utf8"), Buffer.from(item.value, "utf8"));
+    o.set(item[keyidx], item.value);
   }
   return performance.now() - startingTime;
 };
@@ -120,23 +94,6 @@ const logRatio = () => {
   });
 };
 
-let data;
-if (!fs.existsSync(dataJsonPath)) {
-  await generateFakeData();
-}
-console.log("Loading the data. Please be patient...");
-if (!isBun()) {
-  const readStream = fs.createReadStream(dataJsonPath);
-  const parseStream = json.createParseStream();
-  readStream.pipe(parseStream);
-
-  data = await resolveOnEmit(parseStream);
-} else {
-  const file = Bun.file(dataJsonPath);
-  data = await file.json();
-}
-let dataKeys = data.map((el) => el.key);
-
 const builtinMapBenchmark = () => {
   const durationArr = [];
   let average = {
@@ -149,23 +106,23 @@ const builtinMapBenchmark = () => {
       name: "JsMap",
       map: new Map(),
       get: function (k) {
-        return this.map.get(k.toString());
+        return this.map.get(k);
       },
       set: function (k, v) {
-        return this.map.set(k.toString(), v);
+        return this.map.set(k, v);
       },
       del: function (k) {
-        const v = this.map.get(k.toString());
-        this.map.delete(k.toString());
+        const v = this.map.get(k);
+        this.map.delete(k);
         return v;
       },
       destroy: function () {
         return this.map.clear();
       },
     };
-    const insertionDuration = benchmarkInsertion(data, o);
-    const lookupDuration = benchmarkLookup(data, o);
-    const deletionDuration = benchmarkDeletion(data, o);
+    const insertionDuration = benchmarkInsertion(data, o, "key");
+    const lookupDuration = benchmarkLookup(data, o, "key");
+    const deletionDuration = benchmarkDeletion(data, o, "key");
     o.destroy();
     durationArr.push({
       iteration: i,
@@ -213,9 +170,9 @@ const kiviBenchmark = () => {
         return this.map.destroy();
       },
     };
-    const insertionDuration = benchmarkInsertion(data, o);
-    const lookupDuration = benchmarkLookup(data, o);
-    const deletionDuration = benchmarkDeletion(data, o);
+    const insertionDuration = benchmarkInsertion(data, o, "kyb");
+    const lookupDuration = benchmarkLookup(data, o, "kyb");
+    const deletionDuration = benchmarkDeletion(data, o, "kyb");
     o.destroy();
     durationArr.push({
       iteration: i,

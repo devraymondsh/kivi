@@ -11,8 +11,5 @@
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "big-json": "^3.2.0",
-    "@faker-js/faker": "^8.0.2"
-  }
+  "dependencies": {}
 }

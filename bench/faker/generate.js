@@ -1,42 +1,58 @@
-import fs from "node:fs";
-import path from "path";
-import json from "big-json";
-import { fileURLToPath } from "url";
-import { faker } from "@faker-js/faker";
-
 const count = 1_000_000;
 
-export const generateFakeData = () =>
-  new Promise((resolve) => {
-    console.log("Generating fake data for the benchmark...");
-
-    const arr = [];
-    for (let i = 0; i < count; i++) {
-      arr.push({
-        key: faker.string.uuid() + "_" + faker.person.fullName(),
-        value: JSON.stringify({
-          bio: faker.person.bio(),
-          gender: faker.person.gender(),
-          jobArea: faker.person.jobArea(),
-          jobTitle: faker.person.jobTitle(),
-          jobType: faker.person.jobType(),
-          name: faker.person.fullName(),
-        }),
-      });
-      if (i % (count / 10) == 0 && i != 0) {
-        console.log((i / count) * 100 + "%");
-      }
+const genRandomNum = (min, max) => {
+  return Math.random() * (max - min) + min;
+};
+const genRandomStr = function (length) {
+  let result = "";
+  const characters =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const charactersLength = characters.length;
+  let counter = 0;
+  while (counter < length) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    counter += 1;
+  }
+  return result;
+};
+function genUUID() {
+  // Public Domain/MIT
+  var d = new Date().getTime(); //Timestamp
+  var d2 =
+    (typeof performance !== "undefined" &&
+      performance.now &&
+      performance.now() * 1000) ||
+    0; //Time in microseconds since page-load or 0 if unsupported
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    var r = Math.random() * 16; //random number between 0 and 16
+    if (d > 0) {
+      //Use timestamp until depleted
+      r = (d + r) % 16 | 0;
+      d = Math.floor(d / 16);
+    } else {
+      //Use microseconds since page-load if supported
+      r = (d2 + r) % 16 | 0;
+      d2 = Math.floor(d2 / 16);
     }
-
-    const dataJsonPath = path.resolve(
-      path.dirname(fileURLToPath(import.meta.url)),
-      "data/data.json"
-    );
-    console.log("Writing the data. Please be patient.");
-    const writeStream = fs.createWriteStream(dataJsonPath);
-    const stringifyStream = json.createStringifyStream({
-      body: arr,
-    });
-    const pipe = stringifyStream.pipe(writeStream);
-    pipe.on("finish", () => resolve());
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
   });
+}
+
+export const generateFakeData = () => {
+  console.log("Generating fake data for the benchmark...");
+
+  const data = [];
+  for (let i = 0; i <= count; i++) {
+    const key = genRandomStr(genRandomNum(2, 150)) + genUUID();
+    data.push({
+      key,
+      kyb: Buffer.from(key, "utf8"),
+      value: Buffer.from(genRandomStr(genRandomNum(2, 500)), "utf8"),
+    });
+    if (i % (count / 10) == 0 && i != 0) {
+      console.log((i / count) * 100 + "%");
+    }
+  }
+
+  return data;
+};
