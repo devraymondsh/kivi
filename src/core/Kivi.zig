@@ -17,7 +17,10 @@ mem_allocator: std.mem.Allocator,
 
 const Kivi = @This();
 
-inline fn stringcpy(dest: []u8, src: []const u8) void {
+inline fn stringcpy(dest: []u8, src: []const u8) !void {
+    if (dest.len < src.len) {
+        return error.SmallDestMemory;
+    }
     @memcpy(dest[0..src.len], src);
 }
 
@@ -44,8 +47,8 @@ pub fn putEntry(self: *Kivi, key: []u8, value: []u8) !void {
 pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_slice = try self.reserve_key(key.len);
     const value_slice = try self.reserve_value(value.len);
-    stringcpy(key_slice, key);
-    stringcpy(value_slice, value);
+    try stringcpy(key_slice, key);
+    try stringcpy(value_slice, value);
 
     try self.putEntry(key_slice, value_slice);
 
@@ -63,7 +66,7 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice = try self.get_slice(key);
 
     if (value != null) {
-        stringcpy(value.?, value_slice);
+        try stringcpy(value.?, value_slice);
     }
 
     return value_slice.len;
@@ -84,7 +87,7 @@ pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
     const value_slice_len = value_slice.len;
 
     if (value != null) {
-        stringcpy(value.?, value_slice);
+        try stringcpy(value.?, value_slice);
     }
 
     self.del_value(value_slice);

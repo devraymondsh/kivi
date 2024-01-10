@@ -113,24 +113,16 @@ inline fn run_npm_command(
     dependency_steps: anytype,
     runner_step: *std.Build.Step,
 ) void {
-    var last_step: ?std.Build.Step = null;
     inline for (commands, 0..) |command, idx| {
         const syscommand = b.addSystemCommand(&[3][]const u8{ "pnpm", "run", command });
         syscommand.cwd = get_lazypath(dir);
 
-        if (last_step) |step| {
-            var mutable_step = step;
-            syscommand.step.dependOn(&mutable_step);
-        } else {
-            inline for (dependency_steps) |dependency_step| {
-                syscommand.step.dependOn(dependency_step);
-            }
+        inline for (dependency_steps) |dependency_step| {
+            syscommand.step.dependOn(dependency_step);
         }
         if (idx == commands.len - 1) {
             runner_step.dependOn(&syscommand.step);
         }
-
-        last_step = syscommand.step;
     }
 }
 
@@ -225,8 +217,8 @@ pub fn build(b: *std.Build) !void {
         "src/drivers/js",
         .{
             "nodejs-test",
-            // "deno-test",
-            // "bun-test",
+            "deno-test",
+            "bun-test",
         },
         .{ drivers_build_step, ffi_tests_step },
         test_step,
@@ -239,10 +231,10 @@ pub fn build(b: *std.Build) !void {
         "bench",
         .{
             "nodejs-bench",
-            // "deno-bench",
-            // "bun-bench",
+            "deno-bench",
+            "bun-bench",
         },
-        .{drivers_build_step},
+        .{ core_build_step, drivers_build_step },
         bench_step,
     );
 }

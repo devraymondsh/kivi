@@ -1,7 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { isNodeJS } from "../runtime.js";
+import { isDeno, isNodeJS, isBun } from "../runtime.js";
 
 const require = createRequire(import.meta.url);
 
@@ -12,15 +12,25 @@ if (isNodeJS()) {
   machine = os.machine();
   platform = os.platform();
 } else {
-  const { machine: denoOrBunMachine, platform: denoOrBunPlatform } =
-    await import(
+  if (isBun()) {
+    const { machine: bunMachine, platform: bunPlatform } = await import(
       path.resolve(
         path.dirname(fileURLToPath(import.meta.url)),
-        "../deno&bun/index.js"
+        "../deno&bun/bun.js"
       )
     );
-  machine = denoOrBunMachine;
-  platform = denoOrBunPlatform;
+    machine = bunMachine;
+    platform = bunPlatform;
+  } else if (isDeno()) {
+    const { machine: denoMachine, platform: denoPlatform } = await import(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../deno&bun/deno.js"
+      )
+    );
+    machine = denoMachine;
+    platform = denoPlatform;
+  }
 }
 if (platform == "win32") {
   platform = "windows";

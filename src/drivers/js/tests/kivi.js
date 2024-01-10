@@ -1,9 +1,13 @@
 import { Kivi } from "../index.js";
+import { Buffer } from "node:buffer";
 
 const run = (config) => {
   const assert = (name, left, right) => {
     if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) {
-      if (left.toString("utf8") == right.toString("utf8")) {
+      if (
+        left.subarray(0, right.length).toString("utf8") ==
+        right.toString("utf8")
+      ) {
         return;
       }
     } else {

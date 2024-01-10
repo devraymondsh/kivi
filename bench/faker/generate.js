@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 const count = 1_000_000;
 
 const genRandomNum = (min, max) => {

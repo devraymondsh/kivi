@@ -19,14 +19,22 @@ const { getRuntimeKind } = await import(
 );
 switch (getRuntimeKind()) {
   case "bun":
-  case "deno":
-    const { DenoAndBunKivi } = await import(
+    const { BunKivi } = await import(
       path.resolve(
         path.dirname(fileURLToPath(import.meta.url)),
-        "./deno&bun/index.js"
+        "./deno&bun/bun.js"
       )
     );
-    RuntimeKivi = DenoAndBunKivi;
+    RuntimeKivi = BunKivi;
+    break;
+  case "deno":
+    const { DenoKivi } = await import(
+      path.resolve(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "./deno&bun/deno.js"
+      )
+    );
+    RuntimeKivi = DenoKivi;
     break;
   case "node":
     RuntimeKivi = NodeKivi;

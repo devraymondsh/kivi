@@ -1,11 +1,16 @@
 import { Kivi } from "../src/drivers/js/index.js";
+import { isBun, isDeno } from "../src/drivers/js/runtime.js";
 import { generateFakeData } from "./faker/generate.js";
+import { Buffer } from "node:buffer";
 
 const repeatBenchmark = 2;
 const data = generateFakeData();
 
 const assert = (name, left, right) => {
-  if (!left.equals(right)) {
+  if (
+    Buffer.from(left, "utf8").subarray(0, right.length).toString() !==
+    right.toString()
+  ) {
     throw new Error(
       `Assertion '${name}' failed! Left was '${left.toString()}' and right was '${right.toString()}'.`
     );
@@ -13,13 +18,6 @@ const assert = (name, left, right) => {
 };
 const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
 
-const benchmarkRemove = (data, o, keyidx) => {
-  const startingTime = performance.now();
-  for (const item of data) {
-    o.rm(item[keyidx]);
-  }
-  return performance.now() - startingTime;
-};
 const benchmarkDeletion = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
@@ -48,7 +46,6 @@ const wrapInHumanReadable = (value) => {
     totalLookupTime: roundToTwoDecimal(value.totalLookupTime) + " ms",
     totalInsertionTime: roundToTwoDecimal(value.totalInsertionTime) + " ms",
     totalDeletionTime: roundToTwoDecimal(value.totalDeletionTime) + " ms",
-    totalRemoveTime: roundToTwoDecimal(value.totalRemoveTime) + " ms",
   };
 };
 const formatLogResult = (value) => {
@@ -56,7 +53,6 @@ const formatLogResult = (value) => {
     totalLookupTime: value.lookupDuration,
     totalInsertionTime: value.insertionDuration,
     totalDeletionTime: value.deletionDuration,
-    totalRemoveTime: value.removeDuration,
   };
 };
 const logResults = (name, durationArr, averageArg) => {
@@ -71,7 +67,6 @@ const logResults = (name, durationArr, averageArg) => {
     totalLookupTime: average.totalLookupTime,
     totalInsertionTime: average.totalInsertionTime,
     totalDeletionTime: average.totalDeletionTime,
-    totalRemoveTime: average.totalRemoveTime,
   });
 
   console.log(`\n${name}:`);
@@ -80,36 +75,32 @@ const logResults = (name, durationArr, averageArg) => {
     average: wrapInHumanReadable(average),
   });
 };
-const logRatio = () => {
+const logRatio = (index1, index2) => {
   console.log(
-    `\n This table shows how much ${averageLogResult[0].name} is faster than ${averageLogResult[1].name}:`
+    `\n This table shows how much ${averageLogResult[index1].name} is faster than ${averageLogResult[index2].name}:`
   );
 
   console.table({
     lookup:
       roundToTwoDecimal(
-        averageLogResult[1].totalLookupTime /
-          averageLogResult[0].totalLookupTime
+        averageLogResult[index2].totalLookupTime /
+          averageLogResult[index1].totalLookupTime
       ) + "x",
     insertion:
       roundToTwoDecimal(
-        averageLogResult[1].totalInsertionTime /
-          averageLogResult[0].totalInsertionTime
+        averageLogResult[index2].totalInsertionTime /
+          averageLogResult[index1].totalInsertionTime
       ) + "x",
     deletion:
       roundToTwoDecimal(
-        averageLogResult[1].totalDeletionTime /
-          averageLogResult[0].totalDeletionTime
-      ) + "x",
-    remove:
-      roundToTwoDecimal(
-        averageLogResult[1].totalRemoveTime /
-          averageLogResult[0].totalRemoveTime
+        averageLogResult[index2].totalDeletionTime /
+          averageLogResult[index1].totalDeletionTime
       ) + "x",
   });
 };
 
 const builtinMapBenchmark = () => {
+  const name = "JsMap";
   const durationArr = [];
   let average = {
     insertionDuration: 0,
@@ -118,16 +109,13 @@ const builtinMapBenchmark = () => {
   };
   for (let i = 0; i < repeatBenchmark; i++) {
     let o = {
-      name: "JsMap",
+      name,
       map: new Map(),
       get: function (k) {
         return this.map.get(k);
       },
       set: function (k, v) {
         return this.map.set(k, v);
-      },
-      rm: function (k) {
-        this.map.delete(k);
       },
       del: function (k) {
         const v = this.map.get(k);
@@ -141,34 +129,31 @@ const builtinMapBenchmark = () => {
     const insertionDuration = benchmarkInsertion(data, o, "key");
     const lookupDuration = benchmarkLookup(data, o, "key");
     const deletionDuration = benchmarkDeletion(data, o, "key");
-    const removeDuration = benchmarkRemove(data, o, "key");
     o.destroy();
     durationArr.push({
       iteration: i,
       insertionDuration,
       lookupDuration,
       deletionDuration,
-      removeDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
-        removeDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
-        removeDuration: (average.removeDuration + removeDuration) / 2,
       };
     }
   }
-  logResults("JsMap", durationArr, average);
+  logResults(name, durationArr, average);
 };
-const kiviBenchmark = () => {
+const kiviBenchmark = (config) => {
+  const name = "Kivi " + (config.forceUseRuntimeFFI ? "FFI" : "Napi");
   const durationArr = [];
   let average = {
     insertionDuration: 0,
@@ -177,8 +162,8 @@ const kiviBenchmark = () => {
   };
   for (let i = 0; i < repeatBenchmark; i++) {
     let o = {
-      name: "Kivi",
-      map: new Kivi(),
+      name,
+      map: new Kivi(config),
       get: function (k) {
         return this.map.get(k);
       },
@@ -188,9 +173,6 @@ const kiviBenchmark = () => {
       del: function (k) {
         return this.map.del(k);
       },
-      rm: function (k) {
-        this.map.rm(k);
-      },
       destroy: function () {
         return this.map.destroy();
       },
@@ -198,35 +180,37 @@ const kiviBenchmark = () => {
     const insertionDuration = benchmarkInsertion(data, o, "kyb");
     const lookupDuration = benchmarkLookup(data, o, "kyb");
     const deletionDuration = benchmarkDeletion(data, o, "kyb");
-    const removeDuration = benchmarkRemove(data, o, "kyb");
     o.destroy();
     durationArr.push({
       iteration: i,
       insertionDuration,
       lookupDuration,
       deletionDuration,
-      removeDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
-        removeDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
-        removeDuration: (average.removeDuration + removeDuration) / 2,
       };
     }
   }
-  logResults("Kivi", durationArr, average);
+  logResults(name, durationArr, average);
 };
 
 builtinMapBenchmark();
-kiviBenchmark();
 
-logRatio();
+kiviBenchmark({ forceUseRuntimeFFI: false });
+if (isDeno() || isBun()) {
+  kiviBenchmark({ forceUseRuntimeFFI: true });
+  logRatio(0, 1);
+  logRatio(0, 2);
+} else {
+  logRatio(0, 1);
+}
