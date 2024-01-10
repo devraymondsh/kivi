@@ -220,7 +220,7 @@ pub fn build(b: *std.Build) !void {
             "deno-test",
             "bun-test",
         },
-        .{ drivers_build_step, ffi_tests_step },
+        .{ core_build_step, drivers_build_step, ffi_tests_step },
         test_step,
     );
 
