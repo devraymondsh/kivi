@@ -24,3 +24,5 @@ size_t kivi_get(const struct Kivi *const, const char *const key, const size_t ke
 size_t kivi_set(struct Kivi *const, const char *const key, const size_t key_len, const char *const val, const size_t val_len);
 // TODO: Behavior documented in these comments
 size_t kivi_del(struct Kivi *const, const char *const key, const size_t key_len, char *const val, const size_t val_len);
+// TODO: Behavior documented in these comments
+void kivi_rm(struct Kivi *const, const char *const key, const size_t key_len);

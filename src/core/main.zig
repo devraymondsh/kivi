@@ -35,6 +35,9 @@ pub export fn kivi_set(self: *Kivi, key: [*]const u8, key_len: usize, val: [*]co
 pub export fn kivi_del(self: *Kivi, key: [*]const u8, key_len: usize, val: ?[*]u8, val_len: usize) usize {
     return self.del(key[0..key_len], if (val) |v| v[0..val_len] else null) catch 0;
 }
+pub export fn kivi_rm(self: *Kivi, key: [*]const u8, key_len: usize) void {
+    self.rm(key[0..key_len]) catch {};
+}
 
 comptime {
     _ = Kivi;

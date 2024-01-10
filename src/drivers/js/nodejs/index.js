@@ -50,4 +50,7 @@ export class NodeKivi {
   del(key) {
     return addon.kivi_del(this.#buf, key);
   }
+  rm(key) {
+    return addon.kivi_rm(this.#buf, key);
+  }
 }

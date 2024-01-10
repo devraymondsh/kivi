@@ -7,6 +7,7 @@ const common = @import("functions/common.zig");
 pub const set = @import("functions/set.zig");
 pub const get = @import("functions/get.zig");
 pub const del = @import("functions/del.zig");
+pub const rm = @import("functions/rm.zig");
 
 pub export fn kivi_init_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     const args = common.parse_args(env, info, 1) catch {
@@ -51,6 +52,9 @@ const functions = [_]Function{ Function{
 }, Function{
     .name = "kivi_del",
     .method = &del.kivi_del_js,
+}, Function{
+    .name = "kivi_rm",
+    .method = &rm.kivi_rm_js,
 }, Function{
     .name = "kivi_deinit",
     .method = &kivi_deinit_js,

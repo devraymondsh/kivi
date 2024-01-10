@@ -53,6 +53,9 @@ export const dlopenLib = dlopen(dllPath, {
     ],
     returns: FFIType.u32,
   },
+  kivi_rm: {
+    args: [FFIType.ptr, FFIType.cstring, FFIType.usize],
+  },
 });
 
 export const bunUtils = {

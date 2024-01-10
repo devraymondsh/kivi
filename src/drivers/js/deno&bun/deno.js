@@ -43,6 +43,10 @@ export const dlopenLib = Deno.dlopen(dllPath, {
     parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
     result: "u32",
   },
+  kivi_rm: {
+    parameters: ["pointer", "pointer", "usize"],
+    result: "void",
+  },
 });
 
 export const denoUtils = {

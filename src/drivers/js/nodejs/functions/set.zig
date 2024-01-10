@@ -12,10 +12,10 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return common.exception_ret(env, "Invalid Kivi instance!");
     };
     const key = common.get_buffer_string(env, args[1]) catch {
-        return common.exception_ret(env, "Empty/invalid key buffer!");
+        return common.exception_ret(env, "Invalid/empty key buffer!");
     };
     const value = common.get_buffer_string(env, args[2]) catch {
-        return common.exception_ret(env, "Empty/invalid value buffer!");
+        return common.exception_ret(env, "Invalid/empty value buffer!");
     };
     const reserved_key = self.reserve_key(key.len) catch {
         return common.exception_ret(env, "Not enough memory to store the key!");

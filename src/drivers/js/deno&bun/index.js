@@ -97,4 +97,26 @@ export class DenoAndBunKivi {
 
     return null;
   }
+
+  rm(key) {
+    const key_len = new TextEncoder().encodeInto(
+      key,
+      this.#key_scratch
+    ).written;
+    const written_len = utils.symbols.kivi_del(
+      this.#buf,
+      this.#key_scratch_ptr,
+      key_len,
+      this.#value_scratch_ptr,
+      4096
+    );
+
+    if (written_len != 0) {
+      return new TextDecoder().decode(
+        this.#value_scratch.subarray(0, written_len)
+      );
+    }
+
+    return null;
+  }
 }

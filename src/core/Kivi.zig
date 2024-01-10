@@ -92,6 +92,11 @@ pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
     return value_slice_len;
 }
 
+pub fn rm(self: *Kivi, key: []const u8) !void {
+    const value_slice = try self.del_slice(key);
+    self.del_value(value_slice);
+}
+
 pub fn deinit(self: *Kivi) void {
     self.mem.deinit();
 }

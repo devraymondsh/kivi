@@ -49,11 +49,7 @@ const run = (config) => {
     Buffer.from("bar", "utf8")
   );
 
-  assert(
-    "Value-when-delete",
-    k.del(Buffer.from("foo", "utf8")),
-    Buffer.from("bar", "utf8")
-  );
+  k.rm(Buffer.from("foo", "utf8"));
 
   assert("Value-after-delete", k.get(Buffer.from("foo", "utf8")), null);
 

@@ -88,4 +88,13 @@ export class Kivi {
   del(key) {
     return this.#InnerKivi.del(key);
   }
+
+  /**
+   * Removes a key with its value.
+   * @param {string} key
+   * @returns {void}
+   */
+  rm(key) {
+    return this.#InnerKivi.rm(key);
+  }
 }

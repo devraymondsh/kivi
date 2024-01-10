@@ -26,5 +26,9 @@ int main(void) {
 
   assert(kivi_get(&kv, "foo", 3, NULL, 0) == 0);
 
+  assert(kivi_set(&kv, "foo", 3, "bar", 3) == 3);
+
+  kivi_rm(&kv, "foo", 3);
+
   kivi_deinit(&kv);
 }

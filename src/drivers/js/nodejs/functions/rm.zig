@@ -3,7 +3,7 @@ const common = @import("common.zig");
 const ntypes = @import("../napi-bindings.zig");
 const symbols = @import("../symbols.zig");
 
-pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
+pub export fn kivi_rm_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     const args = common.parse_args(env, info, 2) catch {
         return common.exception_ret(env, "Invalid Arguments!");
     };
@@ -14,9 +14,7 @@ pub export fn kivi_get_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     const key = common.get_buffer_string(env, args[1]) catch {
         return common.exception_ret(env, "Invalid/empty key buffer!");
     };
-    const value = self.get_slice(key) catch return common.get_null(env);
+    self.rm(key) catch {};
 
-    return common.create_buffer_string(env, value) catch {
-        return common.exception_ret(env, "Failed to create a buffer for the results!");
-    };
+    return common.get_undefined(env);
 }

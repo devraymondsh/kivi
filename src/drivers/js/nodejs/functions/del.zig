@@ -12,7 +12,7 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return common.exception_ret(env, "Invalid Kivi instance!");
     };
     const key = common.get_buffer_string(env, args[1]) catch {
-        return common.exception_ret(env, "Empty/invalid key buffer!");
+        return common.exception_ret(env, "Invalid/empty key buffer!");
     };
     const value = self.del_slice(key) catch return common.get_null(env);
 

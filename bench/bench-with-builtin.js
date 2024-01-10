@@ -13,6 +13,13 @@ const assert = (name, left, right) => {
 };
 const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
 
+const benchmarkRemove = (data, o, keyidx) => {
+  const startingTime = performance.now();
+  for (const item of data) {
+    o.rm(item[keyidx]);
+  }
+  return performance.now() - startingTime;
+};
 const benchmarkDeletion = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
@@ -23,7 +30,7 @@ const benchmarkDeletion = (data, o, keyidx) => {
 const benchmarkLookup = (data, o, keyidx) => {
   const startingTime = performance.now();
   for (const item of data) {
-    assert(`${o.name} deletion`, o.get(item[keyidx]), item.value);
+    assert(`${o.name} lookup`, o.get(item[keyidx]), item.value);
   }
   return performance.now() - startingTime;
 };
@@ -41,6 +48,7 @@ const wrapInHumanReadable = (value) => {
     totalLookupTime: roundToTwoDecimal(value.totalLookupTime) + " ms",
     totalInsertionTime: roundToTwoDecimal(value.totalInsertionTime) + " ms",
     totalDeletionTime: roundToTwoDecimal(value.totalDeletionTime) + " ms",
+    totalRemoveTime: roundToTwoDecimal(value.totalRemoveTime) + " ms",
   };
 };
 const formatLogResult = (value) => {
@@ -48,6 +56,7 @@ const formatLogResult = (value) => {
     totalLookupTime: value.lookupDuration,
     totalInsertionTime: value.insertionDuration,
     totalDeletionTime: value.deletionDuration,
+    totalRemoveTime: value.removeDuration,
   };
 };
 const logResults = (name, durationArr, averageArg) => {
@@ -62,6 +71,7 @@ const logResults = (name, durationArr, averageArg) => {
     totalLookupTime: average.totalLookupTime,
     totalInsertionTime: average.totalInsertionTime,
     totalDeletionTime: average.totalDeletionTime,
+    totalRemoveTime: average.totalRemoveTime,
   });
 
   console.log(`\n${name}:`);
@@ -91,6 +101,11 @@ const logRatio = () => {
         averageLogResult[1].totalDeletionTime /
           averageLogResult[0].totalDeletionTime
       ) + "x",
+    remove:
+      roundToTwoDecimal(
+        averageLogResult[1].totalRemoveTime /
+          averageLogResult[0].totalRemoveTime
+      ) + "x",
   });
 };
 
@@ -111,6 +126,9 @@ const builtinMapBenchmark = () => {
       set: function (k, v) {
         return this.map.set(k, v);
       },
+      rm: function (k) {
+        this.map.delete(k);
+      },
       del: function (k) {
         const v = this.map.get(k);
         this.map.delete(k);
@@ -123,24 +141,28 @@ const builtinMapBenchmark = () => {
     const insertionDuration = benchmarkInsertion(data, o, "key");
     const lookupDuration = benchmarkLookup(data, o, "key");
     const deletionDuration = benchmarkDeletion(data, o, "key");
+    const removeDuration = benchmarkRemove(data, o, "key");
     o.destroy();
     durationArr.push({
       iteration: i,
       insertionDuration,
       lookupDuration,
       deletionDuration,
+      removeDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
+        removeDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
+        removeDuration: (average.removeDuration + removeDuration) / 2,
       };
     }
   }
@@ -166,6 +188,9 @@ const kiviBenchmark = () => {
       del: function (k) {
         return this.map.del(k);
       },
+      rm: function (k) {
+        this.map.rm(k);
+      },
       destroy: function () {
         return this.map.destroy();
       },
@@ -173,24 +198,28 @@ const kiviBenchmark = () => {
     const insertionDuration = benchmarkInsertion(data, o, "kyb");
     const lookupDuration = benchmarkLookup(data, o, "kyb");
     const deletionDuration = benchmarkDeletion(data, o, "kyb");
+    const removeDuration = benchmarkRemove(data, o, "kyb");
     o.destroy();
     durationArr.push({
       iteration: i,
       insertionDuration,
       lookupDuration,
       deletionDuration,
+      removeDuration,
     });
     if (average.insertionDuration === 0) {
       average = {
         insertionDuration,
         lookupDuration,
         deletionDuration,
+        removeDuration,
       };
     } else {
       average = {
         insertionDuration: (average.insertionDuration + insertionDuration) / 2,
         lookupDuration: (average.lookupDuration + lookupDuration) / 2,
         deletionDuration: (average.deletionDuration + deletionDuration) / 2,
+        removeDuration: (average.removeDuration + removeDuration) / 2,
       };
     }
   }
