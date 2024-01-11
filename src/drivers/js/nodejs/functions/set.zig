@@ -26,7 +26,7 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     };
     @memcpy(reserved_key, key);
     @memcpy(reserved_value, value);
-    self.putEntry(reserved_key, reserved_value) catch {
+    self.put_entry(reserved_key, reserved_value) catch {
         self.mem_allocator.free(reserved_key);
         self.mem_allocator.free(reserved_value);
         return common.exception_ret(env, "Not enough memory to fit the new key/value pair!");

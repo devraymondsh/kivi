@@ -27,13 +27,13 @@ pub export fn kivi_deinit(self: *Kivi) void {
     self.deinit();
 }
 pub export fn kivi_get(self: *const Kivi, key: [*]const u8, key_len: usize, val: ?[*]u8, val_len: usize) usize {
-    return self.get(key[0..key_len], if (val) |v| v[0..val_len] else null) catch 0;
+    return self.get_copy(key[0..key_len], if (val) |v| v[0..val_len] else null) catch 0;
 }
 pub export fn kivi_set(self: *Kivi, key: [*]const u8, key_len: usize, val: [*]const u8, val_len: usize) usize {
     return self.set(key[0..key_len], val[0..val_len]) catch 0;
 }
 pub export fn kivi_del(self: *Kivi, key: [*]const u8, key_len: usize, val: ?[*]u8, val_len: usize) usize {
-    return self.del(key[0..key_len], if (val) |v| v[0..val_len] else null) catch 0;
+    return self.del_copy(key[0..key_len], if (val) |v| v[0..val_len] else null) catch 0;
 }
 pub export fn kivi_rm(self: *Kivi, key: [*]const u8, key_len: usize) void {
     self.rm(key[0..key_len]) catch {};

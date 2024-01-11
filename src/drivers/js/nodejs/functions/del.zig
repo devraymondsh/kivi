@@ -14,7 +14,7 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
     const key = common.get_buffer_string(env, args[1]) catch {
         return common.exception_ret(env, "Invalid/empty key buffer!");
     };
-    const value = self.del_slice(key) catch return common.get_null(env);
+    const value = self.del(key) catch return common.get_null(env);
 
     return common.create_buffer_string(env, value) catch {
         return common.exception_ret(env, "Failed to create a buffer for the results!");

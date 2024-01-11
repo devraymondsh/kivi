@@ -1,23 +1,20 @@
 const std = @import("std");
 const MMap = @import("Mmap.zig");
-const StringHashMap = @import("Hashmap.zig").StringHashMap;
+const memsimd = @import("memsimd");
+const ByteMap = @import("ByteMap.zig");
 
 pub const Config = extern struct {
     maximum_elements: usize = 1_200_000,
     mem_size: usize = 1000 * 1024 * 1024,
 };
-const Entry = struct {
-    key: ?[]u8,
-    value: []u8,
-};
 
 mem: MMap,
-entries: StringHashMap(Entry),
+entries: ByteMap,
 mem_allocator: std.mem.Allocator,
 
 const Kivi = @This();
 
-inline fn stringcpy(dest: []u8, src: []const u8) !void {
+fn stringcpy(dest: []u8, src: []const u8) !void {
     if (dest.len < src.len) {
         return error.SmallDestMemory;
     }
@@ -25,12 +22,10 @@ inline fn stringcpy(dest: []u8, src: []const u8) !void {
 }
 
 pub fn init(self: *Kivi, config: *const Config) !usize {
-    const maximum_elements = std.math.ceilPowerOfTwo(usize, config.maximum_elements) catch unreachable;
     self.mem = try MMap.init(config.mem_size);
     self.mem_allocator = self.mem.allocator();
 
-    self.entries = StringHashMap(Entry){};
-    try self.entries.ensureTotalCapacity(self.mem_allocator, @as(u32, @intCast(maximum_elements)));
+    self.entries = try ByteMap.init(self.mem_allocator, config.maximum_elements);
 
     return @sizeOf(Kivi);
 }
@@ -41,8 +36,8 @@ pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
 pub fn reserve_value(self: *Kivi, size: usize) ![]u8 {
     return try self.mem_allocator.alloc(u8, size);
 }
-pub fn putEntry(self: *Kivi, key: []u8, value: []u8) !void {
-    return self.entries.put(self.mem_allocator, key, Entry{ .key = key, .value = value });
+pub fn put_entry(self: *Kivi, key: []u8, value: []u8) !void {
+    return self.entries.put(key, value);
 }
 pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     const key_slice = try self.reserve_key(key.len);
@@ -50,20 +45,20 @@ pub fn set(self: *Kivi, key: []const u8, value: []const u8) !usize {
     try stringcpy(key_slice, key);
     try stringcpy(value_slice, value);
 
-    try self.putEntry(key_slice, value_slice);
+    try self.put_entry(key_slice, value_slice);
 
     return value_slice.len;
 }
 
-pub fn get_slice(self: *const Kivi, key: []const u8) ![]u8 {
+pub fn get(self: *const Kivi, key: []const u8) ![]u8 {
     if (self.entries.get(key)) |value| {
-        return value.value;
+        return value;
     } else {
         return error.NotFound;
     }
 }
-pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
-    const value_slice = try self.get_slice(key);
+pub fn get_copy(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
+    const value_slice = try self.get(key);
 
     if (value != null) {
         try stringcpy(value.?, value_slice);
@@ -72,32 +67,32 @@ pub fn get(self: *const Kivi, key: []const u8, value: ?[]u8) !usize {
     return value_slice.len;
 }
 
-pub fn del_slice(self: *Kivi, key: []const u8) ![]u8 {
-    if (self.entries.fetchRemove(key)) |kv| {
-        return kv.value.value;
+pub fn free_value(self: *Kivi, value: []u8) void {
+    self.mem_allocator.free(value);
+}
+pub fn del(self: *Kivi, key: []const u8) ![]u8 {
+    if (self.entries.fetchRemove(key)) |value| {
+        return value;
     } else {
         return error.NotFound;
     }
 }
-pub fn del_value(self: *Kivi, value: []u8) void {
-    self.mem_allocator.free(value);
-}
-pub fn del(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
-    const value_slice = try self.del_slice(key);
+pub fn del_copy(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
+    const value_slice = try self.del(key);
     const value_slice_len = value_slice.len;
 
     if (value != null) {
         try stringcpy(value.?, value_slice);
     }
 
-    self.del_value(value_slice);
+    self.free_value(value_slice);
 
     return value_slice_len;
 }
 
 pub fn rm(self: *Kivi, key: []const u8) !void {
-    const value_slice = try self.del_slice(key);
-    self.del_value(value_slice);
+    const value_slice = try self.del(key);
+    self.free_value(value_slice);
 }
 
 pub fn deinit(self: *Kivi) void {
