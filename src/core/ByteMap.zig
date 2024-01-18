@@ -39,6 +39,7 @@ table: []Entry,
 table_size: usize,
 
 var collisions: usize = 0;
+var hasher = Wyhash.init(0);
 
 pub fn init(self: *ByteMap, allocator: *Mmap, size_arg: usize) !void {
     self.table_size = try std.math.ceilPowerOfTwo(usize, size_arg);
@@ -57,7 +58,7 @@ pub fn init(self: *ByteMap, allocator: *Mmap, size_arg: usize) !void {
 }
 
 fn get_index(self: *ByteMap, key: []const u8) usize {
-    return std.hash.Wyhash.hash(@intCast(key.len), key) & (self.table_size - 1);
+    return hasher.reset_hash(@intCast(key.len), key) & (self.table_size - 1);
 }
 
 fn find_entry(self: *ByteMap, key: []const u8, comptime insertion: bool) ?*Entry {

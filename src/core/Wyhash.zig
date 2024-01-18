@@ -194,6 +194,17 @@ pub fn hash(self: *Wyhash, input: []const u8) u64 {
     return self.final2();
 }
 
+pub fn reset_hash(self: *Wyhash, seed: u64, input: []const u8) u64 {
+    self.total_len = 0;
+    self.buf_len = 0;
+
+    self.state[0] = seed ^ mix(seed ^ secret[0], secret[1]);
+    self.state[1] = self.state[0];
+    self.state[2] = self.state[0];
+
+    return self.hash(input);
+}
+
 pub fn reset(self: *Wyhash) void {
     self.total_len = 0;
     self.buf_len = 0;
