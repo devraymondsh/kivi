@@ -1,20 +1,30 @@
-import { Kivi } from "../src/drivers/js/index.js";
-import { isBun, isDeno } from "../src/drivers/js/runtime.js";
+import { Kivi, NodeKivi } from "../src/drivers/js/index.js";
 import { generateFakeData } from "./faker/generate.js";
 import { Buffer } from "node:buffer";
+
+const isBun = () => "Bun" in globalThis;
+const isDeno = () => "Deno" in globalThis;
+// const isNodeJS = () => typeof global !== "undefined" && globalThis === global;
 
 const repeatBenchmark = 2;
 const data = generateFakeData();
 
 const assert = (name, left, right) => {
-  if (
-    Buffer.from(left, "utf8").subarray(0, right.length).toString() !==
-    right.toString()
-  ) {
-    throw new Error(
-      `Assertion '${name}' failed! Left was '${left.toString()}' and right was '${right.toString()}'.`
-    );
+  if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) {
+    if (
+      left.subarray(0, right.length).toString("utf8") == right.toString("utf8")
+    ) {
+      return;
+    }
+  } else {
+    if (left == right) {
+      return;
+    }
   }
+
+  throw new Error(
+    `Assertion '${name}' failed! Left was '${left}' and right was '${right.toString()}'.`
+  );
 };
 const roundToTwoDecimal = (num) => +(Math.round(num + "e+2") + "e-2");
 
@@ -152,8 +162,7 @@ const builtinMapBenchmark = () => {
   }
   logResults(name, durationArr, average);
 };
-const kiviBenchmark = (config) => {
-  const name = "Kivi " + (config.forceUseRuntimeFFI ? "FFI" : "Napi");
+const kiviBenchmark = () => {
   const durationArr = [];
   let average = {
     insertionDuration: 0,
@@ -162,8 +171,8 @@ const kiviBenchmark = (config) => {
   };
   for (let i = 0; i < repeatBenchmark; i++) {
     let o = {
-      name,
-      map: new Kivi(config),
+      name: "Kivi",
+      map: new NodeKivi(),
       get: function (k) {
         return this.map.get(k);
       },
@@ -201,14 +210,14 @@ const kiviBenchmark = (config) => {
       };
     }
   }
-  logResults(name, durationArr, average);
+  logResults("Kivi", durationArr, average);
 };
 
 builtinMapBenchmark();
 
-kiviBenchmark({ forceUseRuntimeFFI: false });
+kiviBenchmark();
 if (isDeno() || isBun()) {
-  kiviBenchmark({ forceUseRuntimeFFI: true });
+  kiviBenchmark();
   logRatio(0, 1);
   logRatio(0, 2);
 } else {

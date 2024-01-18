@@ -1,19 +1,28 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
     {
       "type": "lldb",
-      "request": "launch",
-      "name": "Benchmark debug",
-      // "program": "/home/raymond/.zvm/bin/zig",
       "program": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "name": "Debug Nodejs driver's tests",
+      "args": ["src/drivers/js/tests/kivi.js"]
+    },
+    {
+      "type": "node",
+      "program": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
       "args": ["bench/bench-with-builtin.js"],
-      // "args": ["src/drivers/js/tests/kivi.js"],
-      // "args": ["build", "test"],
-      "cwd": "${workspaceFolder}"
+      "name": "Debug Nodejs driver's benchmark"
+    },
+    {
+      "type": "lldb",
+      "program": "zig-out/bin/ffi-tests",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "name": "Debug Core's FFI tests"
     }
   ]
 }

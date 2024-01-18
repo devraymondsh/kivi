@@ -5,6 +5,9 @@
   "[cpp]": {
     "editor.defaultFormatter": "ms-vscode.cpptools"
   },
+  "[zig]": {
+    "editor.defaultFormatter": "ziglang.vscode-zig"
+  },
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
@@ -26,6 +29,7 @@
     "math.h": "c",
     "random": "c",
     "*.tcc": "c",
-    "cmath": "c"
+    "cmath": "c",
+    "kivi.h": "c"
   }
 }

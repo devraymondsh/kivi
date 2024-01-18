@@ -1,7 +1,7 @@
 import { Kivi } from "../index.js";
 import { Buffer } from "node:buffer";
 
-const run = (config) => {
+const run = () => {
   const assert = (name, left, right) => {
     if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) {
       if (
@@ -21,7 +21,7 @@ const run = (config) => {
     );
   };
 
-  const k = new Kivi(config);
+  const k = new Kivi();
 
   assert("Null-if-uninitialized", k.get(Buffer.from("foo", "utf8")), null);
 
@@ -34,12 +34,12 @@ const run = (config) => {
   );
 
   assert(
-    "Value-when-delete",
-    k.del(Buffer.from("foo", "utf8")),
+    "Assert-when-del",
+    Buffer.from(k.del(Buffer.from("foo", "utf8")), "utf8"),
     Buffer.from("bar", "utf8")
   );
 
-  assert("Value-after-delete", k.get(Buffer.from("foo", "utf8")), null);
+  assert("Value-after-del", k.get(Buffer.from("foo", "utf8")), null);
 
   // Do it again to assert the freelist
 
@@ -49,7 +49,7 @@ const run = (config) => {
 
   assert(
     "Assert-after-set",
-    k.get(Buffer.from("foo", "utf8")),
+    Buffer.from(k.get(Buffer.from("foo", "utf8")), "utf8"),
     Buffer.from("bar", "utf8")
   );
 
@@ -60,5 +60,4 @@ const run = (config) => {
   k.destroy();
 };
 
-run({ forceUseRuntimeFFI: false });
-run({ forceUseRuntimeFFI: true });
+run();

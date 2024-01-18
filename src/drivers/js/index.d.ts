@@ -1,17 +1,15 @@
-interface KiviConfig {
-    forceUseRuntimeFFI: boolean | undefined,
-}
+interface KiviConfig { }
 
-export class Kivi {
+export class KiviRuntime {
     constructor(config?: KiviConfig);
     destroy(): void;
-
-    del(key: string): boolean;
-    bulkDel(keys: string[]): boolean[];
-    fetchDel(key: string): string | null;
-    bulkFetchDel(keys: string[]): (string | null)[];
-    get(key: string): string | null;
-    bulkGet(keys: string[]): (string | null)[];
-    set(key: string, value: string): boolean;
-    bulkSet(keys: string[], values: string[]): boolean[];
+    rm(key: Buffer): Buffer;
+    del(key: Buffer): Buffer | null;
+    get(key: Buffer): Buffer | null;
+    set(key: Buffer, value: Buffer): boolean;
 }
+
+export class Kivi extends KiviRuntime { }
+export class NodeKivi extends KiviRuntime { }
+export class DenoKivi extends KiviRuntime { }
+export class BunKivi extends KiviRuntime { }

@@ -9,9 +9,7 @@ int main(void) {
   struct Kivi kv;
   char v[4096];
 
-  const struct Config *config = NULL;
-
-  assert(kivi_init(&kv, config) == sizeof(struct Kivi));
+  assert(kivi_init(&kv, NULL) == sizeof(struct Kivi));
 
   assert(kivi_get(&kv, "foo", 3, NULL, 0) == 0);
 

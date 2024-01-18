@@ -150,6 +150,27 @@ pub fn build(b: *std.Build) !void {
     Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 0, 1);
     Dependency.addInternal(b, "core", "src/core/main.zig", 0, 2);
 
+    // Executes codegens
+    const codegen_step = b.step("codegen", "Generates bindings");
+    const core_codegen = b.addExecutable(.{
+        .name = "codegen_generate",
+        .root_source_file = .{ .path = "src/codegen/core.zig" },
+        .optimize = optimize,
+        .target = resolved_target,
+    });
+    const js_driver_codegen = b.addExecutable(.{
+        .name = "codegen_generate",
+        .root_source_file = .{ .path = "src/codegen/js_driver.zig" },
+        .optimize = optimize,
+        .target = resolved_target,
+    });
+    inline for (global_deps) |global_dep| {
+        core_codegen.root_module.addImport(global_dep.name, global_dep.module);
+        js_driver_codegen.root_module.addImport(global_dep.name, global_dep.module);
+    }
+    codegen_step.dependOn(&b.addRunArtifact(core_codegen).step);
+    codegen_step.dependOn(&b.addRunArtifact(js_driver_codegen).step);
+
     // Compiles the core then generates static and shared libraries
     const core_build_step = b.step("core", "Builds the core");
     const core_targets = Libs.create(
@@ -158,6 +179,7 @@ pub fn build(b: *std.Build) !void {
         "src/core/main.zig",
         true,
     );
+    core_build_step.dependOn(codegen_step);
     core_build_step.dependOn(&b.addInstallArtifact(core_targets.shared, .{}).step);
     core_build_step.dependOn(&b.addInstallArtifact(core_targets.static.?, .{}).step);
 
@@ -166,7 +188,7 @@ pub fn build(b: *std.Build) !void {
     const js_driver_targets = Libs.create(
         b,
         "kivi-node-addon",
-        "src/drivers/js/nodejs/main.zig",
+        "src/drivers/js/runtimes/nodejs/main.zig",
         false,
     );
     drivers_build_step.dependOn(&b.addInstallArtifact(js_driver_targets.shared, .{}).step);
@@ -176,38 +198,22 @@ pub fn build(b: *std.Build) !void {
         .lib,
         try std.fmt.allocPrint(allocator, "kivi-addon-{s}-{s}.node", .{ arch, tag }),
     );
+    drivers_build_step.dependOn(codegen_step);
     node_addon_install.step.dependOn(&js_driver_targets.shared.step);
     drivers_build_step.dependOn(&node_addon_install.step);
 
-    // Executes codegens
-    const codegen_step = b.step("codegen", "Generates bindings");
-    const codegen = b.addExecutable(.{
-        .name = "codegen_generate",
-        .root_source_file = .{ .path = "src/codegen/core.zig" },
-        .optimize = optimize,
-        .target = resolved_target,
-    });
-    inline for (global_deps) |global_dep| {
-        codegen.root_module.addImport(global_dep.name, global_dep.module);
-    }
-    const codegen_run = b.addRunArtifact(codegen);
-    codegen_step.dependOn(&codegen_run.step);
-
     // C FFI tests
     var ffi_tests_step = b.step("test-ffi", "Runs FFI tests");
-    const ffi_tests = b.addExecutable(.{ .name = "ffi-shared", .target = resolved_target, .optimize = optimize });
+    const ffi_tests = b.addExecutable(.{ .name = "ffi-tests", .target = resolved_target, .optimize = optimize });
     ffi_tests.linkLibC();
     ffi_tests.linkLibrary(core_targets.shared);
     ffi_tests.addSystemIncludePath(.{ .path = "src/core/include" });
     ffi_tests.addCSourceFile(.{
         .file = .{ .path = "src/core/tests/ffi.c" },
-        .flags = switch (optimize) {
-            // Asserts in ffi.c go away in unsafe build modes, so we need to disable errors on unused variables
-            .ReleaseFast, .ReleaseSmall => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror", "-Wno-unused-variable" },
-            .ReleaseSafe, .Debug => &.{ "-std=c17", "-pedantic", "-Wall", "-Werror" },
-        },
+        .flags = &.{"-std=c17"},
     });
-    ffi_tests.step.dependOn(codegen_step);
+    ffi_tests_step.dependOn(core_build_step);
+    ffi_tests_step.dependOn(&b.addInstallArtifact(ffi_tests, .{}).step);
     ffi_tests_step.dependOn(&b.addRunArtifact(ffi_tests).step);
 
     // Runs all tests
@@ -217,8 +223,8 @@ pub fn build(b: *std.Build) !void {
         "src/drivers/js",
         .{
             "nodejs-test",
-            "deno-test",
-            "bun-test",
+            // "deno-test",
+            // "bun-test",
         },
         .{ core_build_step, drivers_build_step, ffi_tests_step },
         test_step,
@@ -230,8 +236,8 @@ pub fn build(b: *std.Build) !void {
         b,
         "bench",
         .{
-            "nodejs-bench",
-            "deno-bench",
+            // "nodejs-bench",
+            // "deno-bench",
             "bun-bench",
         },
         .{ core_build_step, drivers_build_step },

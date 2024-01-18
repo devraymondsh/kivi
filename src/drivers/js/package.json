@@ -9,6 +9,9 @@
     "bun-test": "bun run tests/kivi.js",
     "deno-test": "deno run --unstable --allow-all tests/kivi.js"
   },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "author": "",
   "license": "ISC"
 }

@@ -1,55 +1,11 @@
 import { Buffer } from "node:buffer";
+import { KiviRuntime } from "./runtime.js";
+import { coreDllPath } from "./dll.js";
+import { kiviInstanceSize } from "../codegen-generated.js";
 
-let suffix = "";
-switch (Deno.build.os) {
-  case "windows":
-    suffix = "dll";
-    break;
-  case "darwin":
-    suffix = "dylib";
-    break;
-  default:
-    suffix = "so";
-    break;
-}
-export const machine = Deno.build.arch;
-export let platform = Deno.build.os;
-export let libNamePrefix = "lib";
-if (platform == "win32") {
-  platform = "windows";
-}
-if (platform == "windows") {
-  libNamePrefix = "";
-}
-const dllPath = new URL(
-  await import.meta.resolve(
-    `../../../../zig-out/lib/${libNamePrefix}kivi-${machine}-${platform}.${suffix}`
-  )
-);
-
-const lib = Deno.dlopen(dllPath, {
-  kivi_init: { parameters: ["pointer", "pointer"], result: "u32" },
-  kivi_deinit: { parameters: ["pointer"], result: "void" },
-  kivi_get: {
-    parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
-    result: "u32",
-  },
-  kivi_set: {
-    parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
-    result: "u32",
-  },
-  kivi_del: {
-    parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
-    result: "u32",
-  },
-  kivi_rm: {
-    parameters: ["pointer", "pointer", "usize"],
-    result: "void",
-  },
-});
-
-export class DenoKivi {
-  #selfbuf = new ArrayBuffer(72);
+let lib = undefined;
+export class DenoKivi extends KiviRuntime {
+  #selfbuf = new ArrayBuffer(kiviInstanceSize);
   #self = Deno.UnsafePointer.of(this.#selfbuf);
 
   value_scratch_buf = new Buffer.alloc(4096);
@@ -57,9 +13,35 @@ export class DenoKivi {
 
   temp_buf;
 
-  init() {
-    return lib.symbols.kivi_init(this.#self, null);
+  constructor(config) {
+    super(config);
+
+    if (!lib) {
+      lib = Deno.dlopen(coreDllPath, {
+        kivi_init: { parameters: ["pointer", "pointer"], result: "u32" },
+        kivi_deinit: { parameters: ["pointer"], result: "void" },
+        kivi_get: {
+          parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+          result: "u32",
+        },
+        kivi_set: {
+          parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+          result: "u32",
+        },
+        kivi_del: {
+          parameters: ["pointer", "pointer", "usize", "pointer", "usize"],
+          result: "u32",
+        },
+        kivi_rm: {
+          parameters: ["pointer", "pointer", "usize"],
+          result: "void",
+        },
+      });
+    }
+
+    lib.symbols.kivi_init(this.#self, null);
   }
+
   destroy() {
     return lib.symbols.kivi_deinit(this.#self);
   }
