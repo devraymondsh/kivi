@@ -1,7 +1,6 @@
-const std = @import("std");
 const Kivi = @import("Kivi");
 const ntypes = @import("napi-bindings.zig");
-const symbols = @import("symbols.zig");
+const symbols = @import("symbols.zig").Symbols;
 
 const common = @import("functions/common.zig");
 pub const set = @import("functions/set.zig");

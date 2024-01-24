@@ -1,3 +1,6 @@
+// Written by hand
+pub fn init_symbols() void {}
+
 pub const ptrdiff_t = c_long;
 pub const wchar_t = c_int;
 pub const max_align_t = extern struct {

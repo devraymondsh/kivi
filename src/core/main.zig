@@ -1,16 +1,17 @@
-const std = @import("std");
 const builtin = @import("builtin");
 pub const Kivi = @import("Kivi.zig");
 
 // For debug info in FFI
-const is_debug = builtin.mode == std.builtin.Mode.Debug;
+const is_debug = builtin.mode == .Debug;
 pub export fn dump_stack_trace() void {
     if (is_debug) {
+        const std = @import("std");
         std.debug.dumpCurrentStackTrace(@returnAddress());
     }
 }
 pub export fn setup_debug_handlers() void {
     if (is_debug) {
+        const std = @import("std");
         std.debug.maybeEnableSegfaultHandler();
     }
 }

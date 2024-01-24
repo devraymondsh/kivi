@@ -1,8 +1,8 @@
 /// This is Byte(u8) hashmap implementation that relies on the caller to handle allocations and lifetimes.
-const std = @import("std");
 const memsimd = @import("memsimd");
 const builtin = @import("builtin");
 const Wyhash = @import("./Wyhash.zig");
+const Math = @import("Math.zig");
 const Mmap = @import("./Mmap.zig");
 
 // Key == null and value == null : empty slot
@@ -11,6 +11,19 @@ const Entry = struct {
     key: ?[]u8 = null,
     value: ?[]u8 = null,
 };
+
+// pub const CrtlEmpty: u8 = 0b10000000;
+// pub const CrtlDeleted: u8 = 0b11111110;
+// pub const CrtlSentinel: u8 = 0b11111111;
+// const Crtl = packed struct(u8) {
+//     Empty: u8 = CrtlEmpty,
+// };
+// fn h1(hash: usize) usize {
+//     return hash >> 7;
+// }
+// fn h2(hash: usize) Crtl {
+//     return hash & 0x7f;
+// }
 
 fn nosimd_eql_byte(a: []const u8, b: []const u8) bool {
     return memsimd.nosimd.eql(u8, a, b);
@@ -38,11 +51,10 @@ const ByteMap = @This();
 table: []Entry,
 table_size: usize,
 
-var collisions: usize = 0;
 var hasher = Wyhash.init(0);
 
 pub fn init(self: *ByteMap, allocator: *Mmap, size_arg: usize) !void {
-    self.table_size = try std.math.ceilPowerOfTwo(usize, size_arg);
+    self.table_size = @intCast(Math.ceilPowerOfTwo(@intCast(size_arg)));
     self.table = try allocator.alloc(Entry, self.table_size);
 
     for (0..self.table_size) |idx| {
@@ -88,7 +100,6 @@ fn find_entry(self: *ByteMap, key: []const u8, comptime insertion: bool) ?*Entry
                 return entry;
             } else {
                 index += 1;
-                collisions += 1;
             }
         }
 
@@ -129,6 +140,5 @@ pub fn put(self: *ByteMap, key: []u8, value: []u8) !void {
 
 pub fn deinit(self: *ByteMap) void {
     _ = self; // autofix
-    std.debug.print("Collisions: {any}\n", .{collisions});
-    collisions = 0;
+    // collisions = 0;
 }

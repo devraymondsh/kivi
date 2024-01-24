@@ -1,6 +1,6 @@
 const Kivi = @import("Kivi");
 const ntypes = @import("../napi-bindings.zig");
-const symbols = @import("../symbols.zig");
+const symbols = @import("../symbols.zig").Symbols;
 
 pub fn get_null(env: ntypes.napi_env) ntypes.napi_value {
     var null_value: ntypes.napi_value = undefined;

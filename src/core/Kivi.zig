@@ -1,4 +1,3 @@
-const std = @import("std");
 const MMap = @import("Mmap.zig");
 const memsimd = @import("memsimd");
 const ByteMap = @import("ByteMap.zig");

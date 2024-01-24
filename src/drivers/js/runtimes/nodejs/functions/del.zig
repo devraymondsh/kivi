@@ -1,9 +1,6 @@
 const Kivi = @import("Kivi");
 const common = @import("common.zig");
 const ntypes = @import("../napi-bindings.zig");
-const symbols = @import("../symbols.zig");
-
-const std = @import("std");
 
 pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info) ntypes.napi_value {
     const args = common.parse_args(env, info, 2) catch {

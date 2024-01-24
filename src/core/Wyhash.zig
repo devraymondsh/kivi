@@ -1,4 +1,4 @@
-const std = @import("std");
+const builtin = @import("builtin");
 
 const Wyhash = @This();
 
@@ -105,7 +105,8 @@ inline fn shallowCopy(self: *Wyhash) Wyhash {
 }
 
 inline fn smallKey(self: *Wyhash, input: []const u8) void {
-    std.debug.assert(input.len <= 16);
+    // TODO: Panic
+    // std.debug.assert(input.len <= 16);
 
     if (input.len >= 4) {
         const end = input.len - 4;
@@ -129,10 +130,26 @@ inline fn round(self: *Wyhash, input: *const [48]u8) void {
     }
 }
 
+pub const Endian = enum {
+    big,
+    little,
+};
+const native_endian = builtin.cpu.arch.endian();
+pub inline fn readInt(comptime T: type, buffer: *const [@divExact(@typeInfo(T).Int.bits, 8)]u8, endian: Endian) T {
+    const value: T = @bitCast(buffer.*);
+    return if (@intFromEnum(endian) == @intFromEnum(native_endian)) value else @byteSwap(value);
+}
+
 inline fn read(comptime bytes: usize, data: []const u8) u64 {
-    std.debug.assert(bytes <= 8);
-    const T = std.meta.Int(.unsigned, 8 * bytes);
-    return @as(u64, std.mem.readInt(T, data[0..bytes], .little));
+    // TODO: Panic
+    // std.debug.assert(bytes <= 8);
+
+    return @as(u64, readInt(@Type(.{
+        .Int = .{
+            .signedness = .unsigned,
+            .bits = 8 * bytes,
+        },
+    }), data[0..bytes], .little));
 }
 
 inline fn mum(a: *u64, b: *u64) void {
@@ -156,8 +173,10 @@ inline fn final0(self: *Wyhash) void {
 // used instead). We use an index into a slice to for comptime processing as opposed to if we
 // used pointers.
 inline fn final1(self: *Wyhash, input_lb: []const u8, start_pos: usize) void {
-    std.debug.assert(input_lb.len >= 16);
-    std.debug.assert(input_lb.len - start_pos <= 48);
+    // TODO: Panic
+    // std.debug.assert(input_lb.len >= 16);
+    // std.debug.assert(input_lb.len - start_pos <= 48);
+
     const input = input_lb[start_pos..];
 
     var i: usize = 0;
