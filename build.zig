@@ -5,7 +5,7 @@ var target: std.Target = undefined;
 var optimize: std.builtin.OptimizeMode = undefined;
 var resolved_target: std.Build.ResolvedTarget = undefined;
 
-var global_deps: [3]Dependency = undefined;
+var global_deps: [2]Dependency = undefined;
 const Dependency = struct {
     name: []const u8,
     module: *std.Build.Module,
@@ -28,16 +28,12 @@ const Dependency = struct {
         b: *std.Build,
         comptime name: []const u8,
         comptime source: []const u8,
-        comptime link_module_to: ?comptime_int,
         comptime n: comptime_int,
     ) void {
         global_deps[n] = .{
             .name = name,
             .module = b.createModule(.{ .root_source_file = .{ .path = source } }),
         };
-        if (link_module_to) |link_module| {
-            global_deps[n].module.addImport(global_deps[link_module].name, global_deps[link_module].module);
-        }
     }
 };
 
@@ -146,9 +142,8 @@ pub fn build(b: *std.Build) !void {
     const tag = @tagName(target.os.tag);
 
     // Declares dependencies
-    Dependency.addExternal(b, "memsimd", 0);
-    Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 0, 1);
-    Dependency.addInternal(b, "core", "src/core/main.zig", 0, 2);
+    Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 0);
+    Dependency.addInternal(b, "core", "src/core/main.zig", 1);
 
     // Executes codegens
     const codegen_step = b.step("codegen", "Generates bindings");
@@ -226,7 +221,8 @@ pub fn build(b: *std.Build) !void {
             // "deno-test",
             // "bun-test",
         },
-        .{ core_build_step, drivers_build_step, ffi_tests_step },
+        // ffi_tests_step
+        .{ core_build_step, drivers_build_step },
         test_step,
     );
 

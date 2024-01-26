@@ -3,10 +3,5 @@
     .version = "0.0.0",
     .minimum_zig_version = "0.11.0",
     .paths = .{ "src", "build.zig", "build.zig.zon" },
-    .dependencies = .{
-        .memsimd = .{
-            .url = "https://github.com/devraymondsh/memsimd/archive/refs/tags/v0.2.0.tar.gz",
-            .hash = "1220f41ad9de27c2aef3ec82aea399d66217163fe7f05af1a25f6e7d11cd2d8621ba",
-        },
-    },
+    .dependencies = .{},
 }

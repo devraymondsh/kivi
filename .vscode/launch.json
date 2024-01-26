@@ -10,7 +10,7 @@
       "args": ["src/drivers/js/tests/kivi.js"]
     },
     {
-      "type": "node",
+      "type": "lldb",
       "program": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
