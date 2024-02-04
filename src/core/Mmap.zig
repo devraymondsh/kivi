@@ -13,39 +13,17 @@ var empty_freelist = FreelistNode{ .len = 0, .next = null };
 cursor: usize,
 freelist: *FreelistNode,
 mem: []align(Syscall.page_size) u8,
-mprotect_size: usize,
-protected_mem_cursor: usize,
 
 const Mmap = @This();
 
-pub fn byte_slice_cast(comptime T: type, value: []u8) []T {
-    var new_slice: []T = undefined;
-    new_slice.ptr = @as([*]T, @alignCast(@ptrCast(value.ptr)));
-    new_slice.len = value.len;
-    return new_slice;
-}
-
-fn mprotect(self: *Mmap) !void {
-    const protected_mem_cursor = self.protected_mem_cursor + self.mprotect_size;
-
-    if (!is_windows) {
-        try Syscall.mprotect(@alignCast(self.mem[self.protected_mem_cursor..protected_mem_cursor]), Syscall.PROT.READ | Syscall.PROT.WRITE);
-    } else {
-        const std = @import("std");
-        _ = try std.os.windows.VirtualAlloc(@ptrCast(@alignCast(self.mem)), protected_mem_cursor, std.os.windows.MEM_COMMIT, std.os.windows.PAGE_READWRITE);
-    }
-
-    self.protected_mem_cursor = protected_mem_cursor;
-}
-
-pub fn init(total_size: usize, mprotect_size: usize) !Mmap {
+pub fn init(total_size: usize) !Mmap {
     var mem: []align(Syscall.page_size) u8 = undefined;
     const size = Math.alignForward(usize, total_size, Syscall.page_size);
     if (!is_windows) {
         mem = try Syscall.mmap(
             null,
             size,
-            Syscall.PROT.NONE,
+            Syscall.PROT.READ | Syscall.PROT.WRITE,
             Syscall.MAP.ANONYMOUS | Syscall.MAP.PRIVATE,
             -1,
             0,
@@ -58,10 +36,7 @@ pub fn init(total_size: usize, mprotect_size: usize) !Mmap {
         mem.ptr = @alignCast(@ptrCast(lpvoid));
     }
 
-    var mmap = Mmap{ .mem = mem, .cursor = 0, .protected_mem_cursor = 0, .freelist = &empty_freelist, .mprotect_size = Math.alignForward(usize, mprotect_size, Syscall.page_size) };
-    mmap.mprotect() catch unreachable;
-
-    return mmap;
+    return Mmap{ .mem = mem, .cursor = 0, .freelist = &empty_freelist };
 }
 
 pub fn alloc_byte(self: *Mmap, size: usize) ![]u8 {
@@ -91,11 +66,8 @@ pub fn alloc_byte(self: *Mmap, size: usize) ![]u8 {
         ending_pos += Math.alignForward(usize, size - 16, 8);
     }
 
-    if (ending_pos > self.protected_mem_cursor) {
-        try self.mprotect();
-        while (ending_pos > self.protected_mem_cursor) {
-            try self.mprotect();
-        }
+    if (ending_pos >= self.mem.len) {
+        return error.OutOfMemory;
     }
 
     self.cursor = ending_pos;

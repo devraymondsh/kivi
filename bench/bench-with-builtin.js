@@ -219,7 +219,7 @@ kiviBenchmark();
 if (isDeno() || isBun()) {
   kiviBenchmark();
   logRatio(0, 1);
-  logRatio(0, 2);
+  // logRatio(0, 2);
 } else {
   logRatio(0, 1);
 }

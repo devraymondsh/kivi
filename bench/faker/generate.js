@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 
-const count = 1_000_000;
+const count = 500_000;
 
 const genRandomNum = (min, max) => {
   return Math.random() * (max - min) + min;

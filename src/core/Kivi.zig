@@ -4,8 +4,7 @@ const ByteMap = @import("ByteMap.zig");
 pub const Config = extern struct {
     // (2 ** 18) * 16 = 4194304
     group_size: usize = 262144,
-    mem_size: usize = 2 * 1024 * 1024 * 1024,
-    page_size: usize = 100 * 1024 * 1024,
+    mem_size: usize = 1 * 1024 * 1024 * 1024,
 };
 
 mem: MMap,
@@ -21,7 +20,7 @@ fn stringcpy(dest: []u8, src: []const u8) !void {
 }
 
 pub fn init(self: *Kivi, config: *const Config) !usize {
-    self.mem = try MMap.init(config.mem_size, config.page_size);
+    self.mem = try MMap.init(config.mem_size);
 
     try self.map.init(&self.mem, config.group_size);
 
