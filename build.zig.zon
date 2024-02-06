@@ -3,5 +3,10 @@
     .version = "0.0.0",
     .minimum_zig_version = "0.11.0",
     .paths = .{ "src", "build.zig", "build.zig.zon" },
-    .dependencies = .{},
+    .dependencies = .{
+        .swift_lib = .{
+            .url = "https://github.com/devraymondsh/swift_lib/archive/refs/tags/v0.2.1.tar.gz",
+            .hash = "1220c061e19c7a2315d009adc63c44657fe47f043aaa4cae3cade745095de4cf0488",
+        },
+    },
 }

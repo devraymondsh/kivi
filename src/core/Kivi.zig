@@ -1,5 +1,5 @@
-const MMap = @import("Mmap.zig");
 const ByteMap = @import("ByteMap.zig");
+const swift_lib = @import("swift_lib");
 
 pub const Config = extern struct {
     // (2 ** 18) * 16 = 4194304
@@ -7,8 +7,9 @@ pub const Config = extern struct {
     mem_size: usize = 1 * 1024 * 1024 * 1024,
 };
 
-mem: MMap,
 map: ByteMap,
+allocator: swift_lib.heap.Allocator,
+freelist: swift_lib.heap.FreelistAllocator,
 
 const Kivi = @This();
 
@@ -20,18 +21,21 @@ fn stringcpy(dest: []u8, src: []const u8) !void {
 }
 
 pub fn init(self: *Kivi, config: *const Config) !usize {
-    self.mem = try MMap.init(config.mem_size);
+    const pages = try swift_lib.heap.PageAllocator.init(config.mem_size / swift_lib.os.page_size);
 
-    try self.map.init(&self.mem, config.group_size);
+    self.freelist = swift_lib.heap.FreelistAllocator.init(pages.mem);
+    self.allocator = self.freelist.allocator();
+
+    try self.map.init(self.allocator, config.group_size);
 
     return @sizeOf(Kivi);
 }
 
 pub fn reserve_key(self: *Kivi, size: usize) ![]u8 {
-    return self.mem.alloc(u8, size);
+    return self.allocator.alloc(u8, size);
 }
 pub fn reserve_value(self: *Kivi, size: usize) ![]u8 {
-    return try self.mem.alloc(u8, size);
+    return try self.allocator.alloc(u8, size);
 }
 pub fn put_entry(self: *Kivi, key: []u8, value: []u8) !void {
     return self.map.put(key, value);
@@ -65,7 +69,7 @@ pub fn get_copy(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
 }
 
 pub fn del(self: *Kivi, key: []const u8) ![]u8 {
-    if (self.map.del(&self.mem, key)) |value| {
+    if (self.map.del(self.allocator, key)) |value| {
         return value;
     } else {
         return error.NotFound;
@@ -79,17 +83,19 @@ pub fn del_copy(self: *Kivi, key: []const u8, value: ?[]u8) !usize {
         try stringcpy(value.?, value_slice);
     }
 
-    self.mem.free(value_slice);
+    self.allocator.free(value_slice);
 
     return value_slice_len;
 }
 
 pub fn rm(self: *Kivi, key: []const u8) !void {
     const value_slice = try self.del(key);
-    self.mem.free(value_slice);
+    self.allocator.free(value_slice);
 }
 
 pub fn deinit(self: *Kivi) void {
+    var pages: swift_lib.heap.PageAllocator = .{ .mem = @alignCast(self.freelist.mem) };
+
     self.map.deinit();
-    self.mem.deinit();
+    pages.deinit();
 }

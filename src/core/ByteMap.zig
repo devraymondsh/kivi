@@ -1,8 +1,7 @@
 /// This is Byte(u8) hashmap implementation that relies on the caller to handle allocations and lifetimes.
 const builtin = @import("builtin");
 const Wyhash = @import("./Wyhash.zig");
-const Math = @import("Math.zig");
-const Mmap = @import("./Mmap.zig");
+const swift_lib = @import("swift_lib");
 
 const Entry = struct {
     key: []u8,
@@ -71,8 +70,8 @@ table_size: usize,
 
 var hasher = Wyhash.init(0);
 
-pub fn init(self: *ByteMap, allocator: *Mmap, size: usize) !void {
-    self.table_size = @intCast(Math.ceilPowerOfTwo(@intCast(size)));
+pub fn init(self: *ByteMap, allocator: swift_lib.heap.Allocator, size: usize) !void {
+    self.table_size = swift_lib.math.ceilPowerOfTwo(size);
     self.table_metadata = try allocator.alloc(GroupMetadata, self.table_size);
     self.table = try allocator.alloc(Group, self.table_size);
 
@@ -87,7 +86,7 @@ fn hash(key: []const u8) usize {
     return hasher.reset_hash(@intCast(key.len), key);
 }
 fn hash_to_groupidx(self: *ByteMap, hashed: usize) usize {
-    return (hashed >> 7) & (self.table_size - 1);
+    return (hashed >> 7) % self.table_size;
 }
 fn hash_to_elemidx(hashed: usize) usize {
     return (hashed & 0x7F) % 7;
@@ -104,7 +103,7 @@ fn find_index(self: *ByteMap, key: []const u8, comptime lookup: bool) ?FoundEnti
     const elemidx = hash_to_elemidx(hashed);
 
     var searching_second_time = false;
-    while (true) : (groupidx += 1) {
+    while (true) : (groupidx = (groupidx + 1) % self.table_size) {
         const group = &self.table[groupidx];
         const metadata = self.table_metadata[groupidx];
         const metadata_vec: @Vector(16, u8) = metadata.elements;
@@ -184,7 +183,7 @@ pub fn get(self: *ByteMap, key: []const u8) ?[]u8 {
     }
     return null;
 }
-pub fn del(self: *ByteMap, allocator: *Mmap, key: []const u8) ?[]u8 {
+pub fn del(self: *ByteMap, allocator: swift_lib.heap.Allocator, key: []const u8) ?[]u8 {
     const found_entity = self.find_index(key, true);
     if (found_entity) |entity| {
         const entry = &self.table[entity.group_idx].elements[entity.elem_idx];

@@ -20,14 +20,14 @@ pub export fn kivi_set_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return common.exception_ret(env, "Not enough memory to store the key!");
     };
     const reserved_value = self.reserve_value(value.len) catch {
-        self.mem.free(reserved_key);
+        self.allocator.free(reserved_key);
         return common.exception_ret(env, "Not enough memory to store the value!");
     };
     @memcpy(reserved_key, key);
     @memcpy(reserved_value, value);
     self.put_entry(reserved_key, reserved_value) catch {
-        self.mem.free(reserved_key);
-        self.mem.free(reserved_value);
+        self.allocator.free(reserved_key);
+        self.allocator.free(reserved_value);
         return common.exception_ret(env, "Not enough memory to fit the new key/value pair!");
     };
 
