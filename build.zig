@@ -146,7 +146,7 @@ pub fn build(b: *std.Build) !void {
     const tag = @tagName(target.os.tag);
 
     // Declares dependencies
-    Dependency.addExternal(b, "swift_lib", 0);
+    Dependency.addExternal(b, "swiftzig", 0);
     Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 1, 0);
     Dependency.addInternal(b, "core", "src/core/main.zig", 2, 0);
 

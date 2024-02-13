@@ -1,5 +1,5 @@
 const ByteMap = @import("ByteMap.zig");
-const swift_lib = @import("swift_lib");
+const swiftzig = @import("swiftzig");
 
 pub const Config = extern struct {
     // (2 ** 18) * 16 = 4194304
@@ -8,8 +8,8 @@ pub const Config = extern struct {
 };
 
 map: ByteMap,
-allocator: swift_lib.heap.Allocator,
-freelist: swift_lib.heap.FreelistAllocator,
+allocator: swiftzig.mem.Allocator,
+freelist: swiftzig.mem.FreelistAllocator,
 
 const Kivi = @This();
 
@@ -21,9 +21,9 @@ fn stringcpy(dest: []u8, src: []const u8) !void {
 }
 
 pub fn init(self: *Kivi, config: *const Config) !usize {
-    const pages = try swift_lib.heap.PageAllocator.init(config.mem_size / swift_lib.os.page_size);
+    const pages = try swiftzig.mem.PageAllocator.init(config.mem_size / swiftzig.os.page_size);
 
-    self.freelist = swift_lib.heap.FreelistAllocator.init(pages.mem);
+    self.freelist = swiftzig.mem.FreelistAllocator.init(pages.mem);
     self.allocator = self.freelist.allocator();
 
     try self.map.init(self.allocator, config.group_size);
@@ -94,7 +94,7 @@ pub fn rm(self: *Kivi, key: []const u8) !void {
 }
 
 pub fn deinit(self: *Kivi) void {
-    var pages: swift_lib.heap.PageAllocator = .{ .mem = @alignCast(self.freelist.mem) };
+    var pages: swiftzig.mem.PageAllocator = .{ .mem = @alignCast(self.freelist.mem) };
 
     self.map.deinit();
     pages.deinit();
