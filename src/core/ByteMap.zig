@@ -1,7 +1,6 @@
-/// This is Byte(u8) hashmap implementation that relies on the caller to handle allocations and lifetimes.
+const std = @import("std");
 const builtin = @import("builtin");
-const Wyhash = @import("./Wyhash.zig");
-const swiftzig = @import("swiftzig");
+const FreeListAlloc = @import("FreeListAlloc.zig");
 
 const Entry = struct {
     key: []u8,
@@ -68,10 +67,10 @@ table: []Group,
 table_metadata: []GroupMetadata,
 table_size: usize,
 
-var hasher = Wyhash.init(0);
+// var hasher = std.hash.Wyhash.init(0);
 
-pub fn init(self: *ByteMap, allocator: swiftzig.mem.Allocator, size: usize) !void {
-    self.table_size = swiftzig.math.ceilPowerOfTwo(size);
+pub fn init(self: *ByteMap, allocator: *FreeListAlloc, size: usize) !void {
+    self.table_size = try std.math.ceilPowerOfTwo(usize, size);
     self.table_metadata = try allocator.alloc(GroupMetadata, self.table_size);
     self.table = try allocator.alloc(Group, self.table_size);
 
@@ -83,7 +82,8 @@ pub fn init(self: *ByteMap, allocator: swiftzig.mem.Allocator, size: usize) !voi
 }
 
 fn hash(key: []const u8) usize {
-    return hasher.reset_hash(@intCast(key.len), key);
+    // return hasher.reset_hash(@intCast(key.len), key);
+    return std.hash.Wyhash.hash(@intCast(key.len), key);
 }
 fn hash_to_groupidx(self: *ByteMap, hashed: usize) usize {
     return (hashed >> 7) % self.table_size;
@@ -183,7 +183,7 @@ pub fn get(self: *ByteMap, key: []const u8) ?[]u8 {
     }
     return null;
 }
-pub fn del(self: *ByteMap, allocator: swiftzig.mem.Allocator, key: []const u8) ?[]u8 {
+pub fn del(self: *ByteMap, allocator: *FreeListAlloc, key: []const u8) ?[]u8 {
     const found_entity = self.find_index(key, true);
     if (found_entity) |entity| {
         const entry = &self.table[entity.group_idx].elements[entity.elem_idx];

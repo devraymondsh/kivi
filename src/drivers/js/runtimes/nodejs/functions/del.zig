@@ -19,7 +19,7 @@ pub export fn kivi_del_js(env: ntypes.napi_env, info: ntypes.napi_callback_info)
         return common.exception_ret(env, "Failed to create a buffer for the results!");
     };
 
-    self.allocator.free(value);
+    self.mem.free(value);
 
     return ret;
 }

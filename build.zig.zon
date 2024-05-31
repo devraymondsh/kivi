@@ -1,12 +1,7 @@
 .{
     .name = "kivi",
     .version = "0.0.0",
-    .minimum_zig_version = "0.11.0",
+    .dependencies = .{},
+    .minimum_zig_version = "0.12.0",
     .paths = .{ "src", "build.zig", "build.zig.zon" },
-    .dependencies = .{
-        .swiftzig = .{
-            .url = "https://github.com/devraymondsh/swiftzig/archive/refs/tags/v0.4.0.tar.gz",
-            .hash = "12208f395f60bbb782d91309c7b6d5d0da64a41db784e227f28dfd22ae996c05abaa",
-        },
-    },
 }

@@ -1,7 +1,7 @@
 const std = @import("std");
 const core_mod = @import("core");
 
-const TypeMap = std.ComptimeStringMap([]const u8, .{
+const TypeMap = std.static_string_map.StaticStringMap([]const u8).initComptime(.{
     .{ "void", "void" },
     .{ "usize", "const size_t" },
     .{ "*Kivi", "struct Kivi *const" },

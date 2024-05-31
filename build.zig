@@ -5,7 +5,7 @@ var target: std.Target = undefined;
 var optimize: std.builtin.OptimizeMode = undefined;
 var resolved_target: std.Build.ResolvedTarget = undefined;
 
-var global_deps: [3]Dependency = undefined;
+var global_deps: [2]Dependency = undefined;
 const Dependency = struct {
     name: []const u8,
     module: *std.Build.Module,
@@ -29,15 +29,11 @@ const Dependency = struct {
         comptime name: []const u8,
         comptime source: []const u8,
         comptime n: comptime_int,
-        comptime link_module_to: ?comptime_int,
     ) void {
         global_deps[n] = .{
             .name = name,
-            .module = b.createModule(.{ .root_source_file = .{ .path = source } }),
+            .module = b.createModule(.{ .root_source_file = .{ .src_path = .{ .sub_path = source, .owner = b } } }),
         };
-        if (link_module_to) |link_module| {
-            global_deps[n].module.addImport(global_deps[link_module].name, global_deps[link_module].module);
-        }
     }
 };
 
@@ -51,7 +47,7 @@ const Libs = struct {
             strip = true;
         }
 
-        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = resolved_target, .optimize = optimize });
+        const shared = b.addSharedLibrary(.{ .name = name, .root_source_file = .{ .src_path = .{ .sub_path = path, .owner = b } }, .target = resolved_target, .optimize = optimize });
         shared.root_module.pic = true;
         shared.root_module.strip = strip;
         shared.linker_allow_shlib_undefined = true;
@@ -61,7 +57,7 @@ const Libs = struct {
 
         var static: ?*std.Build.Step.Compile = null;
         if (with_static) {
-            static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .path = path }, .target = resolved_target, .optimize = optimize });
+            static = b.addStaticLibrary(.{ .name = name, .root_source_file = .{ .src_path = .{ .sub_path = path, .owner = b } }, .target = resolved_target, .optimize = optimize });
             shared.root_module.pic = true;
             static.?.root_module.strip = strip;
             static.?.linker_allow_shlib_undefined = true;
@@ -82,7 +78,7 @@ const Libs = struct {
 };
 
 fn install_pnpm() !void {
-    const command_res = try std.ChildProcess.run(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "npm", "install", "-g", "pnpm@latest" } });
+    const command_res = try std.process.Child.run(.{ .allocator = std.heap.page_allocator, .argv = &[_][]const u8{ "npm", "install", "-g", "pnpm@latest" } });
     if (command_res.stderr.len > 0) {
         std.debug.print("{s}\n", .{command_res.stderr});
         return error.PnpmNotFoundAndFailedToInstall;
@@ -90,7 +86,7 @@ fn install_pnpm() !void {
 }
 // Checks if pnpm is installed on the machine and insatlls it if possible
 fn pnpm_check(allocator: std.mem.Allocator) !void {
-    const npm_version_command = std.ChildProcess.run(.{ .allocator = allocator, .argv = &[2][]const u8{ "pnpm", "--version" } });
+    const npm_version_command = std.process.Child.run(.{ .allocator = allocator, .argv = &[2][]const u8{ "pnpm", "--version" } });
     if (npm_version_command) |command_res| {
         if (command_res.stderr.len > 0) {
             return install_pnpm();
@@ -98,10 +94,6 @@ fn pnpm_check(allocator: std.mem.Allocator) !void {
     } else |_| {
         return install_pnpm();
     }
-}
-
-fn get_lazypath(path: []const u8) std.Build.LazyPath {
-    return std.Build.LazyPath.relative(path);
 }
 
 inline fn run_npm_command(
@@ -115,7 +107,7 @@ inline fn run_npm_command(
 ) void {
     inline for (commands, 0..) |command, idx| {
         const syscommand = b.addSystemCommand(&[3][]const u8{ "pnpm", "run", command });
-        syscommand.cwd = get_lazypath(dir);
+        syscommand.cwd = .{ .src_path = .{ .sub_path = dir, .owner = b } };
 
         inline for (dependency_steps) |dependency_step| {
             syscommand.step.dependOn(dependency_step);
@@ -146,21 +138,20 @@ pub fn build(b: *std.Build) !void {
     const tag = @tagName(target.os.tag);
 
     // Declares dependencies
-    Dependency.addExternal(b, "swiftzig", 0);
-    Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 1, 0);
-    Dependency.addInternal(b, "core", "src/core/main.zig", 2, 0);
+    Dependency.addInternal(b, "Kivi", "src/core/Kivi.zig", 0);
+    Dependency.addInternal(b, "core", "src/core/main.zig", 1);
 
     // Executes codegens
     const codegen_step = b.step("codegen", "Generates bindings");
     const core_codegen = b.addExecutable(.{
         .name = "codegen_generate",
-        .root_source_file = .{ .path = "src/codegen/core.zig" },
+        .root_source_file = .{ .src_path = .{ .sub_path = "src/codegen/core.zig", .owner = b } },
         .optimize = optimize,
         .target = resolved_target,
     });
     const js_driver_codegen = b.addExecutable(.{
         .name = "codegen_generate",
-        .root_source_file = .{ .path = "src/codegen/js_driver.zig" },
+        .root_source_file = .{ .src_path = .{ .sub_path = "src/codegen/core.zig", .owner = b } },
         .optimize = optimize,
         .target = resolved_target,
     });
@@ -207,9 +198,9 @@ pub fn build(b: *std.Build) !void {
     const ffi_tests = b.addExecutable(.{ .name = "ffi-tests", .target = resolved_target, .optimize = optimize });
     ffi_tests.linkLibC();
     ffi_tests.linkLibrary(core_targets.shared);
-    ffi_tests.addSystemIncludePath(.{ .path = "src/core/include" });
+    ffi_tests.addSystemIncludePath(.{ .src_path = .{ .sub_path = "src/core/include", .owner = b } });
     ffi_tests.addCSourceFile(.{
-        .file = .{ .path = "src/core/tests/ffi.c" },
+        .file = .{ .src_path = .{ .sub_path = "src/core/tests/ffi.c", .owner = b } },
         .flags = &.{"-std=c17"},
     });
     ffi_tests_step.dependOn(core_build_step);
