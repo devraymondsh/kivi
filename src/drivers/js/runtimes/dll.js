@@ -14,12 +14,15 @@ switch (platform) {
   case "windows":
     suffix = "dll";
     break;
-  case "dylib":
-    suffix = "dll";
+  case "darwin":
+    suffix = "dylib";
     break;
-  default:
+  case "linux":
     suffix = "so";
     break;
+  default:
+    console.error(`Platform ${platform} is not supported.`);
+    throw new Error(`Unsupported platform: ${platform}`);
 }
 
 export const coreDllPath = path.join(
